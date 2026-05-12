@@ -1,0 +1,1032 @@
+# Co-retrieval index for the Gaia translator
+#
+# Schema:
+#   - keyed by card ID (concept, method, phenomenon, translation)
+#   - 'always_retrieve_with': cards/papers that should always be co-retrieved when this entry is hit
+#   - 'cross_discipline_anchors': cross-discipline reviews/syntheses to surface alongside
+#   - 'caveats': mandatory caveats to apply when this concept is retrieved
+#
+# v3 scope: hydrology entries only (demo). Will be extended as other disciplines get v3 card restructuring.
+
+schema_version: v3
+discipline_coverage: [hydrology, seismology, geotechnical_engineering]
+
+cards:
+
+  # ===========================================================================
+  # CONCEPT CARDS
+  # ===========================================================================
+
+  CC-hydro-K:
+    title: "Hydraulic conductivity K"
+    always_retrieve_with:
+      - CC-hydro-T
+      - CC-hydro-D
+      - TC-01
+    cross_discipline_anchors:
+      seismology:
+        - CC-seismo-stress  # to be created when seismology is v3-restructured
+        - TC-02
+      geotech:
+        - CC-geotech-cv     # to be created
+    caveats:
+      - "Always check matrix vs. bulk K; fractures can elevate bulk K by 6+ orders of magnitude."
+      - "K reported without lithology is uninterpretable."
+
+  CC-hydro-T:
+    title: "Transmissivity T"
+    always_retrieve_with:
+      - CC-hydro-K
+      - CC-hydro-S
+      - CC-hydro-D
+    cross_discipline_anchors:
+      seismology: [TC-02, PD-induced-seismicity]
+    caveats:
+      - "Check units (m²/day vs. m²/s — factor of 86,400)."
+      - "Single-well T uncertain by ~order of magnitude."
+
+  CC-hydro-S:
+    title: "Storativity / specific storage"
+    always_retrieve_with:
+      - CC-hydro-T
+      - CC-hydro-D
+    cross_discipline_anchors:
+      geotech: [CC-geotech-cv, PD-aquifer-depletion]
+      seismology: [TC-02]
+    caveats:
+      - "Confined S vs. unconfined Sy differ by 2-4 orders of magnitude; not interchangeable."
+
+  CC-hydro-D:
+    title: "Hydraulic diffusivity D"
+    always_retrieve_with:
+      - CC-hydro-K
+      - CC-hydro-S
+      - TC-01
+      - TC-02
+    cross_discipline_anchors:
+      geotech: [CC-geotech-cv]
+      geomorph: [CC-geomorph-D]    # to be created
+      seismology: [PD-induced-seismicity]
+    caveats:
+      - "Diffusion timescale spans ~10 orders of magnitude across disciplines; always state which D."
+
+  CC-hydro-h:
+    title: "Hydraulic head"
+    always_retrieve_with:
+      - CC-hydro-p
+      - CC-hydro-K
+    cross_discipline_anchors:
+      geotech: [CC-geotech-PorePressure]    # to be created
+      seismology: [TC-02]
+    caveats:
+      - "Confirm datum (mean sea level vs. local)."
+
+  CC-hydro-p:
+    title: "Pore pressure and effective stress"
+    always_retrieve_with:
+      - CC-hydro-h
+      - TC-02
+    cross_discipline_anchors:
+      geotech: [CC-geotech-MohrCoulomb, PD-AR-landslide]
+      seismology: [CC-seismo-stress, PD-induced-seismicity]
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "'Stress' without qualifier almost always means total stress; effective stress is unambiguous."
+      - "Hydrostatic is the default; over-pressured conditions are common in sedimentary basins, subduction zones, and injection scenarios."
+
+  CC-hydro-ET:
+    title: "Evapotranspiration"
+    always_retrieve_with:
+      - MC-hydro-eddycov
+      - TC-06
+    cross_discipline_anchors:
+      ecology: [CC-eco-GPP]              # to be created
+      atmospheric: [MC-atm-ERA5]          # to be created
+      agriculture: [CC-ag-ET0]            # to be created
+    caveats:
+      - "Distinguish potential vs. actual ET, reference vs. site-specific."
+      - "Energy-balance closure error 10-30% bounds confidence."
+
+  CC-hydro-Q:
+    title: "Streamflow and baseflow"
+    always_retrieve_with:
+      - MC-hydro-NWIS
+      - PD-AR-landslide
+    cross_discipline_anchors:
+      geomorph: [CC-geomorph-streampower]   # to be created
+      seismology: [PD-AR-landslide]          # high-frequency seismic noise from bedload
+      ecology: [CC-eco-IHA]                  # to be created
+    caveats:
+      - "Confirm daily mean vs. instantaneous peak vs. annual statistic."
+      - "Regulated vs. natural gauge status matters."
+
+  CC-hydro-recharge:
+    title: "Recharge"
+    always_retrieve_with:
+      - MC-hydro-isotopes
+      - CC-hydro-ET
+    cross_discipline_anchors:
+      agriculture: [PD-aquifer-depletion]
+      atmospheric: [TC-06]
+    caveats:
+      - "Estimation method dictates uncertainty; chloride mass balance and tritium can differ by factors of 2-10."
+
+  # ===========================================================================
+  # METHOD CARDS
+  # ===========================================================================
+
+  MC-hydro-NWIS:
+    title: "USGS National Water Information System"
+    always_retrieve_with:
+      - CC-hydro-Q
+    cross_discipline_anchors:
+      geomorph: [CC-geomorph-flood-frequency]     # to be created
+    caveats:
+      - "Most U.S. basins are ungauged."
+      - "Extreme-flood rating-curve uncertainty can exceed 50%."
+
+  MC-hydro-GRACE:
+    title: "GRACE / GRACE-FO satellite gravimetry"
+    always_retrieve_with:
+      - CC-hydro-S
+      - PD-aquifer-depletion
+    cross_discipline_anchors:
+      seismology: [PD-aquifer-depletion]    # for storage-induced seasonal seismicity
+      agriculture: [PD-aquifer-depletion]
+    caveats:
+      - "Native footprint ≥ 300 km."
+      - "GRACE → groundwater partitioning is model-assumption-loaded."
+
+  MC-hydro-SMAP:
+    title: "SMAP / SMOS satellite soil moisture"
+    always_retrieve_with:
+      - PD-drought
+    cross_discipline_anchors:
+      ecology: [CC-eco-GPP]
+      atmospheric: [TC-06]
+      agriculture: [PD-aquifer-depletion]
+    caveats:
+      - "Surface only (0-5 cm)."
+      - "Forested terrain and mountainous topography compromise retrieval."
+
+  MC-hydro-COSMOS:
+    title: "Cosmic-ray neutron soil moisture"
+    always_retrieve_with:
+      - MC-hydro-SMAP
+      - MC-hydro-eddycov
+    cross_discipline_anchors:
+      ecology: [MC-hydro-eddycov]
+      agriculture: [MC-hydro-SMAP]
+    caveats:
+      - "Footprint 150-250 m; site calibration needed."
+      - "Snow contamination requires correction."
+
+  MC-hydro-eddycov:
+    title: "Eddy-covariance flux towers (FLUXNET/AmeriFlux)"
+    always_retrieve_with:
+      - CC-hydro-ET
+    cross_discipline_anchors:
+      ecology: [CC-eco-GPP]
+      atmospheric: [TC-06]
+      agriculture: [CC-ag-ET0]
+    caveats:
+      - "Energy-balance closure error 10-30%."
+      - "Nighttime stable boundary layer requires u* filtering."
+
+  MC-hydro-isotopes:
+    title: "Stable and radioactive water isotopes"
+    always_retrieve_with:
+      - CC-hydro-recharge
+    cross_discipline_anchors:
+      ecology: [CC-eco-plant-water-source]      # to be created
+      atmospheric: [PD-AR-landslide]             # AR moisture-source attribution
+    caveats:
+      - "Reference standard (VSMOW) and analytical uncertainty must be reported."
+
+  MC-hydro-modeling:
+    title: "MODFLOW, ParFlow, CLM, SWAT"
+    always_retrieve_with:
+      - CC-hydro-K
+      - CC-hydro-recharge
+    cross_discipline_anchors:
+      atmospheric: [TC-05]
+      agriculture: [PD-aquifer-depletion]
+    caveats:
+      - "Equifinality (Beven 2006); calibration alone does not constrain the parameter space."
+      - "Model intercomparison routinely shows factor-of-2 differences."
+
+  # ===========================================================================
+  # PHENOMENON DOSSIERS
+  # ===========================================================================
+
+  PD-AR-landslide:
+    title: "Atmospheric river-driven PNW landslide"
+    always_retrieve_with:
+      - CC-hydro-p
+      - CC-hydro-D
+      - TC-02
+    cross_discipline_anchors:
+      atmospheric: [Ralph et al. 2019]
+      geotech: [CC-geotech-MohrCoulomb]
+      geomorph: [Iverson 2000]
+      ecology: [Sidle & Ochiai 2006]
+      seismology: [Burtin et al. 2008]
+    caveats:
+      - "Post-fire windows have shifted thresholds due to root-cohesion loss."
+      - "PNW orographic enhancement is regionally distinctive."
+
+  PD-aquifer-depletion:
+    title: "Irrigation-driven aquifer depletion"
+    always_retrieve_with:
+      - MC-hydro-GRACE
+      - MC-hydro-NWIS
+      - CC-hydro-S
+    cross_discipline_anchors:
+      agriculture: [Scanlon et al. 2012]
+      geotech: [Faunt et al. 2016]
+      seismology: [Johnson et al. 2017]
+    caveats:
+      - "Inelastic compaction is permanent."
+      - "InSAR is the cleanest subsidence observable."
+
+  PD-induced-seismicity:
+    title: "Injection- and pumping-induced seismicity"
+    always_retrieve_with:
+      - CC-hydro-D
+      - CC-hydro-p
+      - TC-02
+    cross_discipline_anchors:
+      seismology: [Ellsworth 2013, Goebel & Brodsky 2018]
+      geotech: [CC-geotech-PorePressure]
+    caveats:
+      - "Coulomb failure criterion τ = μ(σ_n − p) + c is the mechanism."
+      - "r²/t cloud-expansion rate yields hydraulic diffusivity D."
+
+  PD-drought:
+    title: "Hydrological drought"
+    always_retrieve_with:
+      - MC-hydro-SMAP
+      - MC-hydro-GRACE
+      - CC-hydro-Q
+      - CC-hydro-ET
+    cross_discipline_anchors:
+      atmospheric: [Otkin et al. 2018]
+      ecology: [Allen et al. 2010]
+      agriculture: [PD-aquifer-depletion]
+    caveats:
+      - "Hydrologic drought lags meteorological drought by months to a year."
+      - "Drought indices calibrated to historical statistics may not hold under change."
+
+  PD-eq-hydro-coupling:
+    title: "Earthquake-triggered hydrologic changes"
+    always_retrieve_with:
+      - CC-hydro-p
+      - CC-hydro-K
+      - TC-02
+    cross_discipline_anchors:
+      seismology: [Wang & Manga 2010]
+    caveats:
+      - "Predictive model not yet established; observations are empirical."
+
+  # ===========================================================================
+  # TRANSLATION CARDS
+  # ===========================================================================
+
+  TC-01:
+    title: "Diffusion equation across disciplines"
+    always_retrieve_with:
+      - CC-hydro-D
+      - CC-hydro-K
+    cross_discipline_anchors:
+      geotech: [CC-geotech-cv]
+      geomorph: [CC-geomorph-D]
+    caveats:
+      - "Spans 10 orders of magnitude in D; always state which D."
+
+  TC-02:
+    title: "Effective stress unifies hydrology, geotech, seismology"
+    always_retrieve_with:
+      - CC-hydro-p
+      - PD-induced-seismicity
+      - PD-AR-landslide
+    cross_discipline_anchors:
+      geotech: [CC-geotech-MohrCoulomb]
+      seismology: [CC-seismo-stress]
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "Single most-cited bridge in this corpus."
+      - "Unsaturated conditions require Bishop effective stress."
+
+  TC-03:
+    title: "Ambient seismic noise as hydrology proxy (dv/v)"
+    always_retrieve_with:
+      - CC-hydro-S
+      - CC-hydro-h
+    cross_discipline_anchors:
+      seismology: [Larose et al. 2015]
+    caveats:
+      - "Thermal contamination must be corrected."
+      - "Site-specific calibration required."
+
+  TC-04:
+    title: "Power-law / heavy-tailed distributions"
+    always_retrieve_with:
+      - CC-hydro-Q
+    cross_discipline_anchors:
+      seismology: [CC-seismo-GR]
+      geomorph: [CC-geomorph-landslide-size]
+    caveats:
+      - "Surface power-law similarity does NOT imply shared physics."
+      - "Statistical machinery is portable; mechanism is not."
+
+  TC-05:
+    title: "Data assimilation (atmospheric DA ↔ hydrology ↔ seismology)"
+    always_retrieve_with:
+      - MC-hydro-modeling
+      - MC-hydro-SMAP
+    cross_discipline_anchors:
+      atmospheric: [Evensen 1994, Hersbach et al. 2020]
+      seismology: [Tarantola 2005]
+    caveats:
+      - "Strongly nonlinear regimes break linearization."
+      - "DA does not fix model bias."
+
+  TC-06:
+    title: "Watershed mass balance ↔ atmospheric branch ↔ ecosystem branch"
+    always_retrieve_with:
+      - CC-hydro-Q
+      - CC-hydro-ET
+      - CC-hydro-recharge
+      - MC-hydro-GRACE
+    cross_discipline_anchors:
+      atmospheric: [MC-hydro-eddycov]
+      ecology: [MC-hydro-eddycov]
+    caveats:
+      - "Closure error 10-30% — small difference of large numbers."
+      - "Inter-basin transfer and anthropogenic withdrawals confound."
+
+# End of v3 hydrology entries.
+
+  # ===========================================================================
+  # SEISMOLOGY CONCEPT CARDS
+  # ===========================================================================
+
+  CC-seismo-stress:
+    title: "Fault stress and stress drop"
+    always_retrieve_with:
+      - CC-hydro-p
+      - TC-02
+      - PD-induced-seismicity
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-p, TC-02]
+      geotech: [CC-geotech-MohrCoulomb]    # to be created
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "'Stress' without qualifier means total stress; effective stress is unambiguous."
+      - "Static vs. dynamic stress distinction matters for the application."
+
+  CC-seismo-Vs:
+    title: "Shear-wave velocity and Vs30"
+    always_retrieve_with:
+      - MC-seismo-MASW
+      - MC-seismo-ambient-noise
+      - PD-liquefaction
+    cross_discipline_anchors:
+      geotech: [CC-geotech-MohrCoulomb, PD-liquefaction]
+      nsg: [MC-seismo-MASW, MC-nsg-ERT]    # MC-nsg-ERT to be created
+      hydrology: [TC-03]
+    caveats:
+      - "Vs30 method (MASW, downhole, CPT-Vs) can disagree by 20-30%."
+      - "1D Vs30 misses basin geometry and 3D effects."
+
+  CC-seismo-Q:
+    title: "Seismic attenuation Q (NOT streamflow!)"
+    always_retrieve_with:
+      - CC-seismo-Vs
+      - CC-seismo-noise
+    cross_discipline_anchors: {}
+    caveats:
+      - "VOCABULARY COLLISION: Q in seismology is dimensionless attenuation; Q in hydrology is volumetric streamflow [m³/s]. Always disambiguate."
+      - "Q is frequency-dependent; report Q₀ and η in Q = Q₀ f^η."
+
+  CC-seismo-magnitude:
+    title: "Moment magnitude Mw and seismic moment M0"
+    always_retrieve_with:
+      - CC-seismo-stress
+      - CC-seismo-GR
+      - CC-seismo-source
+    cross_discipline_anchors:
+      hydrology: [PD-eq-hydro-coupling]
+      geotech: [PD-liquefaction]
+      geomorph: [PD-megathrust]
+    caveats:
+      - "Distinguish Mw, ML, mb, Ms — can differ by 0.3-0.5 units."
+      - "ML saturates above ~6.5; not reliable for large events."
+
+  CC-seismo-GR:
+    title: "Gutenberg-Richter and b-value"
+    always_retrieve_with:
+      - CC-seismo-magnitude
+      - TC-04
+    cross_discipline_anchors:
+      hydrology: [TC-04]                # flood-frequency machinery shared, physics distinct
+      geomorph: [TC-04]                  # landslide size distributions
+    caveats:
+      - "Always check magnitude of completeness Mc; fits below Mc are biased."
+      - "b-value uncertainty σ_b ≈ b/√N; need >50-100 events for spatial mapping."
+
+  CC-seismo-dvv:
+    title: "Relative velocity change dv/v"
+    always_retrieve_with:
+      - MC-seismo-ambient-noise
+      - TC-03
+      - CC-seismo-noise
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-S, CC-hydro-h, TC-03]
+      nsg: [MC-nsg-ERT]
+      geotech: [PD-liquefaction]
+    caveats:
+      - "Site-specific calibration to physical observables required."
+      - "Thermoelastic and seasonal effects must be separated from target signal."
+
+  CC-seismo-noise:
+    title: "Ambient seismic field"
+    always_retrieve_with:
+      - MC-seismo-ambient-noise
+      - CC-seismo-dvv
+      - PD-microseism
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q]            # high-freq noise from streamflow
+      atmospheric: [PD-microseism]        # storm tracking
+      ecology: []                         # ⚠️ "soundscape" vocabulary collision; not physically related
+    caveats:
+      - "'Noise' in seismology vs. ecological soundscape is a vocabulary collision; different physics."
+      - "Frequency band selects source physics."
+
+  CC-seismo-source:
+    title: "Earthquake source parameters"
+    always_retrieve_with:
+      - CC-seismo-magnitude
+      - CC-seismo-stress
+      - TC-09
+    cross_discipline_anchors:
+      hydrology: [PD-induced-seismicity, MC-hydro-isotopes]   # forensic source attribution
+      geomorph: [PD-megathrust]
+      geotech: [PD-liquefaction]
+    caveats:
+      - "CMT reliable to ~Mw 5; below that, regional moment tensors require care."
+      - "Stress-drop estimates carry ~factor-of-3 uncertainty."
+
+  # ===========================================================================
+  # SEISMOLOGY METHOD CARDS
+  # ===========================================================================
+
+  MC-seismo-broadband:
+    title: "Broadband seismometers and global/regional networks"
+    always_retrieve_with:
+      - MC-seismo-EarthScope
+      - CC-seismo-noise
+    cross_discipline_anchors:
+      hydrology: [PD-eq-hydro-coupling]
+      atmospheric: [PD-microseism]
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "Cite network DOIs explicitly."
+      - "Instrument response correction is non-trivial; method matters."
+
+  MC-seismo-DAS:
+    title: "Distributed acoustic sensing (DAS)"
+    always_retrieve_with:
+      - MC-seismo-ambient-noise
+      - CC-seismo-dvv
+    cross_discipline_anchors:
+      nsg: [MC-seismo-ambient-noise]
+      geotech: [PD-liquefaction]
+      hydrology: [TC-03]
+      ecology: []                       # whale calls, biological signals
+    caveats:
+      - "Directional sensitivity: axial strain only."
+      - "Cable coupling controls noise floor; pipelines not standardized."
+
+  MC-seismo-ambient-noise:
+    title: "Ambient-noise cross-correlation"
+    always_retrieve_with:
+      - CC-seismo-noise
+      - CC-seismo-dvv
+      - MC-seismo-tomography
+    cross_discipline_anchors:
+      hydrology: [TC-03]
+      nsg: [MC-seismo-MASW]
+      geotech: [PD-liquefaction]
+    caveats:
+      - "Source distribution non-uniformity biases Green's function recovery."
+      - "Frequency band selects depth sensitivity."
+
+  MC-seismo-MASW:
+    title: "Multichannel analysis of surface waves"
+    always_retrieve_with:
+      - CC-seismo-Vs
+      - MC-seismo-tomography
+    cross_discipline_anchors:
+      nsg: [MC-seismo-tomography]
+      geotech: [PD-liquefaction]
+      hydrology: []                     # MASW can detect water table
+    caveats:
+      - "Higher-mode contamination biases Vs at high frequency."
+      - "1D inversion violated by lateral heterogeneity."
+
+  MC-seismo-tomography:
+    title: "Seismic tomography (body, surface, FWI)"
+    always_retrieve_with:
+      - MC-seismo-ambient-noise
+      - TC-08
+    cross_discipline_anchors:
+      nsg: [TC-08]                      # joint geophysical imaging
+      hydrology: [CC-hydro-K]
+      geotech: [PD-liquefaction]
+    caveats:
+      - "Resolution non-uniform; checkerboards test recovery of specific patterns."
+      - "Regularization is a load-bearing assumption."
+
+  MC-seismo-ML:
+    title: "ML earthquake catalogs (PhaseNet, EQTransformer)"
+    always_retrieve_with:
+      - CC-seismo-magnitude
+      - CC-seismo-GR
+    cross_discipline_anchors:
+      hydrology: [PD-induced-seismicity]
+      geotech: [PD-liquefaction]
+    caveats:
+      - "Training-data domain shift can degrade out-of-region performance."
+      - "Catalogs are tied to specific model versions."
+
+  MC-seismo-EarthScope:
+    title: "EarthScope/IRIS DMC and FDSN data services"
+    always_retrieve_with:
+      - MC-seismo-broadband
+    cross_discipline_anchors: {}
+    caveats:
+      - "Cite network DOIs."
+      - "Pre-2000 records often have instrument-response or timing issues."
+
+  # ===========================================================================
+  # SEISMOLOGY PHENOMENON DOSSIERS
+  # ===========================================================================
+
+  PD-megathrust:
+    title: "Subduction megathrust earthquakes"
+    always_retrieve_with:
+      - CC-seismo-magnitude
+      - CC-seismo-source
+      - PD-slow-slip
+      - PD-eq-hydro-coupling
+    cross_discipline_anchors:
+      hydrology: [PD-eq-hydro-coupling]
+      geomorph: [PD-AR-landslide]
+      geotech: [PD-liquefaction]
+      atmospheric: [PD-microseism]
+    caveats:
+      - "Cascadia paleoseismology: ~500 yr recurrence, last event 1700."
+      - "Offshore monitoring is a key gap (OBS, submarine DAS)."
+
+  PD-liquefaction:
+    title: "Earthquake-induced liquefaction"
+    always_retrieve_with:
+      - CC-seismo-Vs
+      - CC-seismo-stress
+      - CC-hydro-p
+      - TC-02
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-p]
+      geotech: [CC-geotech-MohrCoulomb]
+      nsg: [MC-seismo-MASW]
+    caveats:
+      - "Seed-Idriss CSR/CRR framework is the engineering standard."
+      - "Vs-based vs. CPT-based vs. SPT-based triggering criteria differ."
+      - "Nisqually 2001 is the canonical PNW case (Denolle Group digital-twin anchor)."
+
+  PD-slow-slip:
+    title: "Slow slip events and tectonic tremor"
+    always_retrieve_with:
+      - CC-seismo-source
+      - PD-megathrust
+    cross_discipline_anchors:
+      hydrology: []                     # fluid-pressure modulation is conjectured
+    caveats:
+      - "Tremor ≠ LFE; different signal classes within the same phenomenon."
+      - "Cascadia ETS cycle ~14 months."
+
+  PD-volcanic-seismicity:
+    title: "Volcanic earthquakes and eruption forecasting"
+    always_retrieve_with:
+      - CC-seismo-dvv
+      - CC-seismo-noise
+      - MC-seismo-ambient-noise
+    cross_discipline_anchors:
+      atmospheric: []                   # gas, plumes, ash
+      hydrology: []                     # geothermal water chemistry, lahar
+      geomorph: []                      # lahar inundation
+    caveats:
+      - "Mt. Rainier is the highest-priority Cascade volcano for monitoring."
+      - "Pre-eruption dv/v works at some volcanoes (Brenguier 2008b Piton de la Fournaise) but is not universal."
+
+  PD-microseism:
+    title: "Secondary microseism and oceanic coupling"
+    always_retrieve_with:
+      - CC-seismo-noise
+      - MC-seismo-ambient-noise
+    cross_discipline_anchors:
+      atmospheric: []                   # storm tracking
+      ecology: []                       # NB vocabulary collision with soundscape
+    caveats:
+      - "Longuet-Higgins (1950) mechanism: wave-wave interactions in deep water."
+      - "Microseism PSD is a continuous climate proxy."
+
+  # ===========================================================================
+  # SEISMOLOGY TRANSLATION CARDS
+  # ===========================================================================
+
+  TC-07:
+    title: "Anisotropy across disciplines"
+    always_retrieve_with:
+      - CC-seismo-Vs
+      - CC-hydro-K
+      - MC-seismo-tomography
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-K]
+      nsg: [MC-seismo-MASW]
+    caveats:
+      - "Same fabric → multiple observable anisotropies, but petrophysical link must be calibrated."
+      - "Stress-induced and structural anisotropy can coexist; both must be modeled."
+
+  TC-08:
+    title: "Joint geophysical inversion — seismic ↔ ERT ↔ MT ↔ gravity"
+    always_retrieve_with:
+      - MC-seismo-tomography
+      - MC-seismo-MASW
+    cross_discipline_anchors:
+      nsg: [MC-nsg-ERT]
+      hydrology: [CC-hydro-K]
+      geotech: []
+    caveats:
+      - "Cross-gradient does not require a petrophysical model; explicit coupling requires careful calibration."
+      - "Resolution-mismatch can introduce artifacts in joint inversion."
+
+  TC-09:
+    title: "Source-identification inverse problems (seismology ↔ isotopes ↔ eDNA ↔ atmospheric attribution)"
+    always_retrieve_with:
+      - CC-seismo-source
+      - MC-hydro-isotopes
+      - TC-05
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-isotopes]
+      atmospheric: []                   # CH4 inversion, etc.
+      ecology: []                       # eDNA source attribution
+      geomorph: []                      # sediment provenance
+    caveats:
+      - "Shared inference structure (Bayesian inverse problems); discipline-specific forward models."
+      - "Tools port across; physical mixing/propagation does not."
+
+  # ===========================================================================
+  # GEOTECHNICAL ENGINEERING CONCEPT CARDS
+  # ===========================================================================
+
+  CC-geotech-MohrCoulomb:
+    title: "Effective stress σ' and Mohr-Coulomb shear strength τ_f"
+    always_retrieve_with:
+      - CC-hydro-p
+      - CC-seismo-stress
+      - TC-02
+      - CC-geotech-FS
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-p, TC-02]
+      seismology: [CC-seismo-stress, PD-induced-seismicity]
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "Effective vs. total stress framework: φ' from drained tests vs. apparent φ from total-stress analysis can differ by 5-15°."
+      - "c' ≈ 0 for cohesionless soils; do not infer c' > 0 without lab evidence."
+
+  CC-geotech-cv:
+    title: "Coefficient of consolidation c_v"
+    always_retrieve_with:
+      - CC-hydro-D
+      - CC-hydro-K
+      - TC-01
+      - PD-subsidence-consolidation
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-D]
+      geomorph: [CC-geomorph-D]                # to be created
+      seismology: [PD-induced-seismicity]
+    caveats:
+      - "c_v from oedometer (Casagrande log-time vs. Taylor root-time) vs. in-situ pore-pressure dissipation can differ by factor 2-5."
+      - "Sand c_v ≈ 10⁻⁴ m²/s — drainage effectively instantaneous on engineering timescales."
+
+  CC-geotech-PorePressure:
+    title: "Pore-pressure response and Skempton parameters"
+    always_retrieve_with:
+      - CC-hydro-p
+      - CC-geotech-MohrCoulomb
+      - CC-geotech-CSR-CRR
+      - PD-liquefaction
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-h, CC-hydro-p, TC-02]
+      seismology: [PD-induced-seismicity, CC-seismo-stress]
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "Truly undrained requires loading faster than the consolidation timescale of the layer."
+      - "B-check (saturation) must be reported for triaxial work; B < 0.95 invalidates undrained interpretation."
+
+  CC-geotech-CSR-CRR:
+    title: "Cyclic stress and resistance ratios for liquefaction"
+    always_retrieve_with:
+      - PD-liquefaction
+      - CC-geotech-PorePressure
+      - MC-geotech-CPT
+      - MC-geotech-SPT
+      - CC-seismo-Vs
+    cross_discipline_anchors:
+      seismology: [CC-seismo-magnitude, MC-geotech-GMPE]
+      nsg: [MC-seismo-MASW]
+      hydrology: [CC-hydro-p]
+    caveats:
+      - "Fines-content correction: Boulanger-Idriss vs. Youd 2001 NCEER differ at high fines."
+      - "Vs-based, CPT-based, and SPT-based triggering curves can give different FS_liq; methodological consistency required."
+
+  CC-geotech-Su:
+    title: "Undrained shear strength of clay"
+    always_retrieve_with:
+      - CC-geotech-MohrCoulomb
+      - CC-geotech-FS
+      - MC-geotech-triaxial
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-K]
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "Field vane, CPT (N_kt), UU triaxial, DSS — can differ 30-50% on the same clay."
+      - "SHANSEP normalizes to stress history; raw Su without OCR context is ambiguous."
+
+  CC-geotech-FS:
+    title: "Factor of safety against slope failure"
+    always_retrieve_with:
+      - CC-geotech-MohrCoulomb
+      - PD-coseismic-landslide
+      - PD-AR-landslide
+      - TC-11
+    cross_discipline_anchors:
+      geomorph: [PD-AR-landslide]
+      hydrology: [CC-hydro-p, PD-AR-landslide]
+      seismology: [CC-seismo-magnitude, MC-geotech-GMPE]
+    caveats:
+      - "Drainage assumption (drained c'/φ' vs. undrained Su) determines which strength card applies."
+      - "2D limit equilibrium ≠ 3D FEM ≠ infinite-slope; method matters."
+
+  CC-geotech-G-Gmax:
+    title: "Modulus reduction G/Gmax and damping ratio"
+    always_retrieve_with:
+      - CC-seismo-Vs
+      - MC-geotech-cyclic-labs
+      - MC-geotech-numerical
+      - PD-site-response
+      - TC-10
+    cross_discipline_anchors:
+      seismology: [CC-seismo-Vs, CC-seismo-dvv]
+      nsg: [MC-seismo-MASW]
+    caveats:
+      - "Linear regime γ < 10⁻⁴; nonlinearity threshold at engineering ground-motion levels."
+      - "Curves depend on plasticity index (Vucetic-Dobry family); not a single universal curve."
+
+  # ===========================================================================
+  # GEOTECHNICAL ENGINEERING METHOD CARDS
+  # ===========================================================================
+
+  MC-geotech-CPT:
+    title: "Cone Penetration Test and seismic CPT"
+    always_retrieve_with:
+      - CC-geotech-CSR-CRR
+      - CC-geotech-Su
+      - CC-geotech-cv
+      - MC-geotech-SPT
+      - TC-12
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-K]
+      seismology: [CC-seismo-Vs, MC-seismo-MASW]
+      nsg: [MC-seismo-MASW]
+    caveats:
+      - "Refusal in gravel and cobbles; cannot penetrate dense or cemented layers."
+      - "Pore-pressure filter location (u₁/u₂/u₃) affects soil-behavior-type interpretation."
+
+  MC-geotech-SPT:
+    title: "Standard Penetration Test"
+    always_retrieve_with:
+      - CC-geotech-CSR-CRR
+      - MC-geotech-CPT
+      - PD-liquefaction
+    cross_discipline_anchors:
+      hydrology: []                            # grain-size based K estimation
+      seismology: [CC-seismo-Vs]               # Ohta-Goto Vs correlation
+      geomorph: []                             # stratigraphic mapping
+    caveats:
+      - "Hammer energy varies 30-100% across rigs; calibrated energy ratio required."
+      - "Pre-1980 N data without energy correction should be flagged as uncertain."
+
+  MC-geotech-HVSR:
+    title: "Microtremor H/V spectral ratio"
+    always_retrieve_with:
+      - MC-seismo-MASW
+      - MC-seismo-ambient-noise
+      - CC-seismo-Vs
+      - PD-site-response
+    cross_discipline_anchors:
+      seismology: [MC-seismo-ambient-noise, CC-seismo-Vs]
+      nsg: [MC-seismo-MASW]
+    caveats:
+      - "H/V peak frequency is robust; amplitude is not — only ratios are reliable."
+      - "SESAME 2004 peak-quality criteria required for single-station provisional interpretation."
+
+  MC-geotech-triaxial:
+    title: "Triaxial and direct-shear lab testing"
+    always_retrieve_with:
+      - CC-geotech-MohrCoulomb
+      - CC-geotech-Su
+      - CC-geotech-PorePressure
+      - CC-geotech-cv
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-S]                  # oedometer m_v feeds Sₛ
+      geomorph: [CC-geotech-FS]
+    caveats:
+      - "Sample disturbance biases strength low; provenance (Shelby tube vs. block) must be reported."
+      - "Saturation B-check; strain-rate effects in undrained tests."
+
+  MC-geotech-cyclic-labs:
+    title: "Cyclic triaxial, cyclic simple shear, resonant column"
+    always_retrieve_with:
+      - CC-geotech-CSR-CRR
+      - CC-geotech-G-Gmax
+      - MC-geotech-triaxial
+      - PD-liquefaction
+    cross_discipline_anchors:
+      seismology: [CC-seismo-Q]                # near-surface attenuation from ξ(γ)
+      nsg: [MC-seismo-MASW]
+    caveats:
+      - "Reconstitution method (moist tamping, water/dry pluviation) produces different fabric and CRR at the same density."
+      - "Frequency dependence: lab ≈ 1 Hz vs. seismic 1-10 Hz adds uncertainty for plastic clays."
+
+  MC-geotech-numerical:
+    title: "1D/2D nonlinear site response and SSI codes"
+    always_retrieve_with:
+      - CC-geotech-G-Gmax
+      - MC-geotech-cyclic-labs
+      - MC-geotech-GMPE
+      - PD-site-response
+      - TC-10
+    cross_discipline_anchors:
+      seismology: [MC-seismo-tomography]       # 3D physics-based simulation
+      nsg: [MC-seismo-MASW]
+      hydrology: [CC-geotech-PorePressure]
+    caveats:
+      - "Equivalent-linear underestimates response at γ > ≈ 0.1%; cannot generate pore pressure."
+      - "Constitutive model choice dominates fully nonlinear outputs."
+
+  MC-geotech-GMPE:
+    title: "Ground motion prediction equations (NGA-West2/East/Sub)"
+    always_retrieve_with:
+      - CC-seismo-magnitude
+      - CC-seismo-Vs
+      - CC-geotech-CSR-CRR
+      - PD-coseismic-landslide
+    cross_discipline_anchors:
+      seismology: [CC-seismo-magnitude, CC-seismo-source]
+      geotech: [MC-geotech-numerical]
+      geomorph: [PD-coseismic-landslide]
+    caveats:
+      - "Extrapolation to large Mw or near-fault distances is poorly constrained."
+      - "Vs30 site term alone misses 3D basin amplification (PD-site-response)."
+
+  # ===========================================================================
+  # GEOTECHNICAL PHENOMENON DOSSIERS
+  # ===========================================================================
+
+  PD-coseismic-landslide:
+    title: "Earthquake-triggered landslides"
+    always_retrieve_with:
+      - CC-geotech-FS
+      - CC-geotech-PorePressure
+      - MC-geotech-GMPE
+      - PD-AR-landslide
+      - PD-liquefaction
+    cross_discipline_anchors:
+      seismology: [CC-seismo-magnitude, CC-seismo-source, MC-seismo-ML]
+      geomorph: [PD-AR-landslide]
+      hydrology: [CC-hydro-Q]                  # post-event streamflow/sediment
+      ecology: []                              # root cohesion, recovery
+    caveats:
+      - "Newmark displacement D_N regressions (Jibson 2007) are empirical; physics-based extension is active."
+      - "Pre-event soil moisture modulates susceptibility but is rarely included in operational hazard models."
+
+  PD-subsidence-consolidation:
+    title: "Pumping-induced consolidation and land subsidence"
+    always_retrieve_with:
+      - CC-geotech-cv
+      - CC-geotech-MohrCoulomb
+      - CC-hydro-h
+      - CC-hydro-S
+      - MC-hydro-GRACE
+      - PD-aquifer-depletion
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-depletion, MC-hydro-GRACE, MC-hydro-NWIS]
+      agriculture: [PD-aquifer-depletion]
+      nsg: []                                  # InSAR
+      seismology: []                           # poroelastic seismicity modulation
+    caveats:
+      - "Inelastic compaction is permanent — irreversible storage loss."
+      - "Distinct from PD-aquifer-depletion (hydrologic side); the two cards co-retrieve."
+
+  PD-dam-levee-safety:
+    title: "Earth dam and levee safety"
+    always_retrieve_with:
+      - CC-geotech-FS
+      - CC-geotech-PorePressure
+      - CC-geotech-CSR-CRR
+      - MC-geotech-GMPE
+      - PD-liquefaction
+      - PD-AR-landslide
+    cross_discipline_anchors:
+      seismology: [CC-seismo-magnitude, MC-geotech-GMPE]
+      hydrology: [CC-hydro-Q, CC-hydro-p]
+      atmospheric: [PD-AR-landslide]
+      nsg: []                                  # ERT for seepage anomalies
+    caveats:
+      - "Climate-driven revision of design hydrology (PMP, PMF, AR frequency) is uneven across jurisdictions."
+      - "Tailings dam failure statistics distinct from earth-fill dam statistics; cross-discipline integration with mining hydrology uneven."
+
+  PD-site-response:
+    title: "Nonlinear site response and basin effects"
+    always_retrieve_with:
+      - CC-geotech-G-Gmax
+      - CC-seismo-Vs
+      - MC-geotech-HVSR
+      - MC-geotech-numerical
+      - MC-seismo-MASW
+      - TC-10
+      - TC-12
+    cross_discipline_anchors:
+      seismology: [CC-seismo-Vs, MC-seismo-ambient-noise]
+      nsg: [MC-seismo-MASW, MC-seismo-tomography]
+    caveats:
+      - "Vs30 alone underpredicts large-basin amplification; Z_1.0, Z_2.5 basin depths matter."
+      - "Linear seismic and nonlinear engineering site-response pictures converge only in the small-strain limit."
+
+  # ===========================================================================
+  # GEOTECHNICAL TRANSLATION CARDS
+  # ===========================================================================
+
+  TC-10:
+    title: "Linear seismology ↔ nonlinear geotechnical site response"
+    always_retrieve_with:
+      - CC-geotech-G-Gmax
+      - CC-seismo-Vs
+      - MC-geotech-numerical
+      - MC-seismo-MASW
+      - PD-site-response
+    cross_discipline_anchors:
+      seismology: [CC-seismo-Vs]
+      nsg: [MC-seismo-MASW, MC-seismo-ambient-noise]
+      geotech: [CC-geotech-G-Gmax, MC-geotech-cyclic-labs]
+    caveats:
+      - "Bridge holds at γ < 10⁻⁴; breaks at engineering ground-motion strains on soft sites."
+      - "Equivalent-linear is an intermediate framework; fully nonlinear required for liquefaction-capable analysis."
+
+  TC-11:
+    title: "Engineered FS ↔ natural hillslope FS"
+    always_retrieve_with:
+      - CC-geotech-FS
+      - CC-geotech-MohrCoulomb
+      - PD-AR-landslide
+      - PD-coseismic-landslide
+    cross_discipline_anchors:
+      geomorph: [PD-AR-landslide]
+      hydrology: [CC-hydro-p, CC-hydro-D]
+      ecology: []                              # root cohesion (Sidle & Ochiai 2006)
+    caveats:
+      - "c', φ', Su are physically the same across communities; FS calculation conventions differ."
+      - "Engineers and geomorphologists rarely cite each other but solve the same equation."
+
+  TC-12:
+    title: "Vs across depth regimes — geotech borehole, NSG/MASW, seismic tomography"
+    always_retrieve_with:
+      - CC-seismo-Vs
+      - MC-geotech-CPT
+      - MC-seismo-MASW
+      - MC-seismo-ambient-noise
+      - MC-seismo-tomography
+      - PD-site-response
+    cross_discipline_anchors:
+      seismology: [CC-seismo-Vs, MC-seismo-ambient-noise, MC-seismo-tomography]
+      nsg: [MC-seismo-MASW]
+      geotech: [MC-geotech-CPT, MC-geotech-HVSR, MC-geotech-GMPE]
+    caveats:
+      - "'Missing middle' 50 m - 1 km depth is undersampled by both geotech (too deep) and seismology (too shallow)."
+      - "Vs30 hides information: two sites with identical Vs30 but different impedance below 30 m amplify differently."
+      - "Same physical Vs across regimes; depth/resolution differences are the bridge content."
+
+# End of v3 hydrology + seismology + geotechnical_engineering entries. Other disciplines to be added as they are v3-restructured.
