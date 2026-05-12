@@ -78,7 +78,12 @@ Phenomenon dossiers may run slightly longer than 200 words because the mechanism
 
 ## Hard rules
 
-- **Length**: ≤200 words per card body (concept, method, translation). Phenomenon dossiers may reach 350 words.
+- **Length** (calibrated to the seismology + geotech + hydrology reference standard):
+  - Concept cards: target ~280 words, hard cap 450.
+  - Method cards: target ~330 words, hard cap 450.
+  - Phenomenon dossiers: target ~400 words, hard cap 500.
+  - Translation cards: target ~450 words, hard cap 550.
+  - These targets replace the earlier ≤200-word aspiration, which the actual reference cards (seismology: 265–442; geotech: 234–468; hydrology: 273–500) did not honor. The bar is "match the density of the existing v3 corpus." A linter (Phase 3) will flag outliers above hard caps for review rather than reject them; the targets are advisory.
 - **Citations**: every factual claim must trace to either an in-card citation or a `Related cards` pointer that itself carries the citation. Anchor citations carry full DOI or, if no DOI exists, full bibliographic information including publisher and year.
 - **Cross-discipline equivalents**: every concept and method card must have at least one explicit cross-discipline equivalent (named, linked, and with a one-phrase bridge), unless the card explicitly documents a "this is unique to this discipline" finding.
 - **"When you see this in a paper" hook**: required on every concept and method card. Not a stylistic option — it's load-bearing for the agent's paper-interpretation flow.

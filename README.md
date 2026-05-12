@@ -128,7 +128,7 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 | Pipeline (drafting + critique) | ✅ complete |
 | Cross-cutting concepts skill | ✅ complete |
 | Card format spec (`docs/card_format_spec.md`) | ✅ **v3 complete** |
-| Hydrology — long-form card pattern | ✅ **v3 demo complete** |
+| Hydrology — long-form card pattern | ✅ **v3 complete** (9 concept / 7 method / 5 phenomenon / 6 translation cards including TC-01 through TC-06) |
 | Hydrology — short summary | ✅ complete |
 | Seismology — long-form card pattern | ✅ **v3 complete** |
 | Seismology — short summary | ✅ complete |
@@ -136,8 +136,8 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 | Geotechnical engineering — short summary | ✅ complete |
 | Other 5 disciplines (geomorphology, atmospheric sciences, ecology, agricultural sciences, near-surface geophysics) — long-form card pattern | 🟡 v2 legacy; awaiting v3 restructuring |
 | Other 5 disciplines — short summaries | 🟡 not yet written |
-| Agent playbook | 🟡 skeleton (vocab table expanded for hydro + seismo + geotech) |
-| Co-retrieval index | 🟡 hydrology + seismology + geotechnical_engineering entries |
+| Agent playbook | 🟢 vocab table covers hydro + seismo + geotech; needs extension as remaining disciplines land |
+| Co-retrieval index | 🟢 hydrology + seismology + geotechnical_engineering entries; remaining disciplines to follow |
 | RAG retrieval layer | 🔲 not yet built |
 | Paper corpus | 🔲 not yet built |
 
