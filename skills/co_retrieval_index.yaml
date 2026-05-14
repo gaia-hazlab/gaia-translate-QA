@@ -9,7 +9,7 @@
 # v3 scope: hydrology entries only (demo). Will be extended as other disciplines get v3 card restructuring.
 
 schema_version: v3
-discipline_coverage: [hydrology, seismology, geotechnical_engineering, geomorphology]
+discipline_coverage: [hydrology, seismology, geotechnical_engineering, geomorphology, atmospheric_sciences, ecology, agricultural_sciences, near_surface_geophysics]
 
 cards:
 
@@ -1408,4 +1408,812 @@ cards:
       - "Inversion most reliable with known grain size and station ≤ 100 m from channel."
       - "Cultural noise in urban settings; signal partitioning across rain/wind/debris is the current frontier."
 
-# End of v3 hydrology + seismology + geotechnical_engineering + geomorphology entries. Other disciplines to be added as they are v3-restructured.
+  # ===========================================================================
+  # ATMOSPHERIC SCIENCES — CONCEPT, METHOD, PHENOMENON, TRANSLATION
+  # ===========================================================================
+
+  CC-atm-T:
+    title: "Temperature, potential temperature, stability"
+    always_retrieve_with: [CC-atm-q, CC-atm-PBL, CC-hydro-ET, CC-eco-GPP]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET]
+      ecology: [CC-eco-GPP, PD-forest-mortality]
+      seismology: [CC-seismo-dvv]      # thermoelastic forcing
+    caveats:
+      - "Distinguish T (instantaneous), θ (adiabatic), θ_e (moist-adiabatic). Stability uses θ or θ_e."
+      - "Surface-T trends differ from tropospheric-mean trends under climate change."
+
+  CC-atm-q:
+    title: "Specific humidity, VPD, Clausius-Clapeyron"
+    always_retrieve_with: [CC-atm-T, CC-atm-precip, CC-hydro-ET, TC-15]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET]
+      ecology: [CC-eco-GPP, PD-forest-mortality]
+      agriculture: [CC-ag-ET0]
+    caveats:
+      - "RH vs. q vs. VPD convey different info; report which."
+      - "C-C ~7%/K is thermodynamic; precipitation extremes can scale faster with dynamical intensification."
+
+  CC-atm-precip:
+    title: "Precipitation"
+    always_retrieve_with: [CC-atm-q, CC-atm-IVT, CC-hydro-Q, TC-06, PD-atmospheric-river]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, CC-hydro-recharge, PD-AR-landslide]
+      geomorph: [PD-river-floods, PD-debris-flow]
+      ecology: [PD-flash-drought]
+    caveats:
+      - "Gauge vs. radar QPE vs. satellite can differ by factor 2 in mountainous terrain."
+      - "Extreme-event return periods sensitive to record length and stationarity assumption."
+
+  CC-atm-wind:
+    title: "Wind, geostrophic balance, jets"
+    always_retrieve_with: [CC-atm-pressure, CC-atm-PBL, CC-seismo-noise, PD-microseism]
+    cross_discipline_anchors:
+      seismology: [CC-seismo-noise, PD-microseism]
+      geomorph: [PD-post-fire-erosion]   # wind erosion
+      ecology: []
+    caveats:
+      - "Reference height (10 m vs. PBL-mean vs. jet-level) matters; surface underestimates jets by 3-10×."
+
+  CC-atm-pressure:
+    title: "Surface pressure, geopotential, microseism forcing"
+    always_retrieve_with: [CC-atm-wind, CC-seismo-noise, CC-hydro-h, PD-microseism]
+    cross_discipline_anchors:
+      seismology: [CC-seismo-noise, PD-microseism]
+      hydrology: [CC-hydro-h]
+    caveats:
+      - "Station vs. MSL-corrected vs. constant-pressure-level: different quantities."
+      - "Barometric corrections in confined-aquifer hydrology are routine but error-prone."
+
+  CC-atm-radiation:
+    title: "Radiative fluxes and surface energy balance"
+    always_retrieve_with: [CC-atm-T, CC-hydro-ET, CC-eco-GPP, MC-hydro-eddycov]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET]
+      ecology: [CC-eco-GPP, CC-eco-LAI]
+      agriculture: [CC-ag-ET0]
+    caveats:
+      - "Confirm SW vs. PAR vs. net SW; LW up/down/net; whether R_n is measured or computed."
+
+  CC-atm-PBL:
+    title: "Atmospheric boundary layer"
+    always_retrieve_with: [CC-atm-T, CC-atm-wind, MC-hydro-eddycov]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-eddycov, CC-hydro-ET]
+      ecology: [CC-eco-GPP]
+    caveats:
+      - "PBL-height definition (parcel, Ri, bulk Ri threshold) can differ 30-50%."
+      - "Nighttime stable-PBL eddy-covariance fluxes need u* filtering."
+
+  CC-atm-IVT:
+    title: "Integrated vapor transport and AR characterization"
+    always_retrieve_with: [CC-atm-q, CC-atm-precip, PD-atmospheric-river, PD-AR-landslide, TC-15]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, PD-AR-landslide, PD-river-floods]
+      geomorph: [PD-river-floods, PD-debris-flow]
+      geotech: [PD-dam-levee-safety]
+    caveats:
+      - "AR-detection algorithm (Guan-Waliser vs. Rutz vs. Mundhenk) differs at margins."
+      - "AR Scale reporting (1-5) increasingly standard."
+
+  MC-atm-radiosonde:
+    title: "Radiosondes and upper-air network"
+    always_retrieve_with: [MC-atm-ERA5, MC-atm-GNSS-IWV, CC-atm-T, CC-atm-q]
+    cross_discipline_anchors:
+      hydrology: [MC-atm-GNSS-IWV]
+    caveats:
+      - "Sparse over oceans / polar / Africa / Asia / S. America; reanalysis fills."
+      - "Pre-2000 sondes have larger humidity bias than RS92/RS41 era."
+
+  MC-atm-ERA5:
+    title: "ERA5 reanalysis"
+    always_retrieve_with: [MC-atm-radiosonde, MC-atm-NWP, MC-hydro-modeling, CC-atm-IVT, TC-05]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      atmospheric: [PD-atmospheric-river]
+      seismology: []
+    caveats:
+      - "Reanalysis is not observation; data-sparse regions reflect model dynamics."
+      - "Precipitation from reanalysis is model-derived; satellite products preferred for P analysis."
+
+  MC-atm-GPM:
+    title: "GPM/IMERG satellite precipitation"
+    always_retrieve_with: [CC-atm-precip, MC-atm-NEXRAD, MC-atm-ERA5, MC-hydro-modeling]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      geomorph: [PD-AR-landslide]
+    caveats:
+      - "Underestimates orographic precipitation; gauge correction helps but doesn't fix."
+      - "Light precipitation and snowfall poorly retrieved."
+
+  MC-atm-NEXRAD:
+    title: "NEXRAD Doppler radar (WSR-88D)"
+    always_retrieve_with: [CC-atm-precip, MC-atm-GPM, MC-hydro-modeling, PD-convective-storm]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      ecology: []                          # bird/bat migration
+    caveats:
+      - "Beam blockage in mountainous regions (PNW Cascades)."
+      - "Z-R relations are highly variable; modern dual-pol algorithms reduce bias."
+
+  MC-atm-GNSS-IWV:
+    title: "GNSS-derived precipitable water vapor"
+    always_retrieve_with: [CC-atm-q, CC-atm-IVT, MC-atm-radiosonde, MC-geomorph-InSAR, PD-atmospheric-river]
+    cross_discipline_anchors:
+      seismology: [MC-seismo-broadband]    # shared CORS infrastructure
+      hydrology: [MC-hydro-COSMOS]         # complementary water observations
+    caveats:
+      - "Requires accurate surface pressure for hydrostatic-delay separation."
+      - "Mountainous-terrain horizontal gradients not captured by point stations."
+
+  MC-atm-NWP:
+    title: "Numerical weather prediction (WRF, MPAS, IFS, GFS, CMIP)"
+    always_retrieve_with: [MC-atm-ERA5, MC-hydro-modeling, TC-05, PD-extreme-precip-intensification]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      atmospheric: [PD-atmospheric-river]
+      agriculture: [MC-ag-crop-models]
+    caveats:
+      - "Skill horizon ~1 week for synoptic, ~1 day for mesoscale convection."
+      - "Sub-grid physics (convection, PBL, microphysics, land surface) dominate model differences."
+
+  MC-atm-GOES:
+    title: "Geostationary imagery (GOES-R series)"
+    always_retrieve_with: [MC-atm-GPM, MC-atm-NEXRAD, MC-atm-ERA5, PD-convective-storm]
+    cross_discipline_anchors:
+      hydrology: [PD-atmospheric-river]
+      atmospheric: [PD-convective-storm]
+    caveats:
+      - "Fixed equatorial orbit means high-latitude geometry is poor."
+      - "Optical channels useless at night except thermal IR."
+
+  PD-atmospheric-river:
+    title: "Atmospheric rivers"
+    always_retrieve_with: [CC-atm-IVT, CC-atm-precip, MC-atm-ERA5, MC-atm-GPM, PD-AR-landslide, PD-river-floods, TC-15]
+    cross_discipline_anchors:
+      hydrology: [PD-AR-landslide, PD-river-floods]
+      geomorph: [PD-river-floods, PD-debris-flow]
+      geotech: [PD-dam-levee-safety]
+    caveats:
+      - "Climate-change intensification: super-CC scaling in CMIP6 (Espinoza 2018)."
+      - "Multi-day events deliver 30-50% of West Coast annual P."
+
+  PD-heat-dome:
+    title: "Extreme-heat events and the 2021 PNW heat dome"
+    always_retrieve_with: [CC-atm-T, CC-atm-q, CC-atm-pressure, PD-forest-mortality, PD-flash-drought]
+    cross_discipline_anchors:
+      ecology: [PD-forest-mortality, CC-eco-GPP]
+      hydrology: [MC-hydro-SMAP, PD-flash-drought]
+      seismology: [CC-seismo-dvv]
+    caveats:
+      - "2021 PNW event ~150× more likely under anthropogenic forcing (Philip 2022)."
+      - "Compound heat + drought + dry soils amplify each other."
+
+  PD-flash-drought:
+    title: "Flash drought"
+    always_retrieve_with: [CC-atm-q, CC-atm-precip, MC-hydro-SMAP, MC-hydro-GRACE, PD-drought, PD-agricultural-drought]
+    cross_discipline_anchors:
+      hydrology: [PD-drought, MC-hydro-SMAP]
+      ecology: [PD-forest-mortality]
+      agriculture: [PD-agricultural-drought]
+    caveats:
+      - "Rapid-onset (~weeks); shorter lead time than conventional drought."
+      - "Multiple competing indices classify same event differently."
+
+  PD-convective-storm:
+    title: "Severe thunderstorms, hail, tornadoes, lightning"
+    always_retrieve_with: [CC-atm-T, CC-atm-q, CC-atm-wind, MC-atm-NEXRAD, MC-atm-GOES]
+    cross_discipline_anchors:
+      seismology: [CC-seismo-noise]        # acoustic/seismic storm signatures
+      geomorph: [PD-post-fire-erosion]     # lightning ignitions; convective rainfall
+      ecology: []                          # lightning ignition of wildfires
+    caveats:
+      - "Climate-change response is regime-dependent (CAPE-shear tradeoffs)."
+      - "Akash Kharita's seismic-storm-detection work is the GAIA HazLab connection."
+
+  PD-extreme-precip-intensification:
+    title: "Climate-driven intensification of precipitation extremes"
+    always_retrieve_with: [CC-atm-q, CC-atm-precip, CC-atm-IVT, PD-atmospheric-river, TC-15]
+    cross_discipline_anchors:
+      hydrology: [CC-geomorph-flood-frequency, PD-river-floods]
+      geomorph: [PD-AR-landslide, PD-debris-flow]
+      geotech: [PD-dam-levee-safety]
+    caveats:
+      - "Thermodynamic CC ~7%/K is robust; dynamical contribution is the open frontier."
+      - "Compound extremes (heat+precip, drought→flood) are the most damaging class."
+
+  TC-15:
+    title: "Clausius-Clapeyron extreme-precipitation intensification cascade"
+    always_retrieve_with: [CC-atm-q, CC-atm-precip, CC-atm-IVT, PD-atmospheric-river, PD-AR-landslide, PD-river-floods]
+    cross_discipline_anchors:
+      hydrology: [PD-AR-landslide, CC-geomorph-flood-frequency]
+      geomorph: [PD-debris-flow, PD-river-floods, PD-post-fire-erosion]
+      geotech: [PD-dam-levee-safety]
+    caveats:
+      - "Mean P scales 1-3%/K; extremes scale ~7%/K thermodynamic, can exceed."
+      - "Cascade through hydro/geomorph/geotech is not monotonic; antecedent conditions matter."
+
+  # ===========================================================================
+  # ECOLOGY — CONCEPT, METHOD, PHENOMENON, TRANSLATION
+  # ===========================================================================
+
+  CC-eco-GPP:
+    title: "Gross primary productivity and NEE"
+    always_retrieve_with: [CC-eco-LAI, CC-hydro-ET, MC-hydro-eddycov, MC-eco-eddycov, TC-16]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET, MC-hydro-eddycov]
+      atmospheric: [CC-atm-T, CC-atm-q]
+      agriculture: [CC-ag-yield-water-response]
+    caveats:
+      - "GPP is *derived* from NEE plus partitioning model assumptions, not direct measurement."
+      - "ET-GPP coupling at the leaf is the deep ecology-hydrology bridge (TC-16)."
+
+  CC-eco-IHA:
+    title: "Indicators of hydrologic alteration"
+    always_retrieve_with: [CC-hydro-Q, MC-hydro-NWIS, TC-17, PD-salmon-habitat]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, MC-hydro-NWIS]
+      geomorph: [CC-geomorph-streampower]
+    caveats:
+      - "Requires ≥15 yr of pre- and post-impact records for usable signal-to-noise."
+      - "Framework is descriptive; does not predict species-specific responses."
+
+  CC-eco-plant-water-source:
+    title: "Plant water-source attribution from xylem isotopes"
+    always_retrieve_with: [CC-hydro-recharge, CC-hydro-ET, MC-hydro-isotopes, MC-eco-isotopes, TC-16]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-isotopes, CC-hydro-recharge]
+      atmospheric: [PD-atmospheric-river]
+    caveats:
+      - "Cryogenic-vacuum extraction has known artifacts in clay-rich soils."
+      - "Mixing-analysis identifiability with >3 sources requires Bayesian framework."
+
+  CC-eco-LAI:
+    title: "Leaf area index, fAPAR, vegetation indices"
+    always_retrieve_with: [CC-eco-GPP, CC-hydro-ET, CC-atm-radiation, MC-eco-remote-sensing]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET]
+      atmospheric: [CC-atm-radiation]
+      agriculture: [MC-ag-yield-monitoring]
+    caveats:
+      - "NDVI/EVI saturate at LAI >4-5; NIRv saturates less."
+      - "LAI definitions (one-sided vs. all-sided; effective vs. true) differ; specify."
+
+  CC-eco-root-cohesion:
+    title: "Root reinforcement and apparent cohesion"
+    always_retrieve_with: [CC-geotech-MohrCoulomb, CC-geotech-FS, PD-AR-landslide, PD-post-fire-erosion, TC-11]
+    cross_discipline_anchors:
+      geotech: [CC-geotech-MohrCoulomb, CC-geotech-FS]
+      geomorph: [PD-post-fire-erosion, PD-AR-landslide]
+    caveats:
+      - "Values are species- and depth-specific; don't transfer reliably."
+      - "Post-disturbance decay half-life 3-10 yr."
+
+  CC-eco-species-diversity:
+    title: "Species diversity and community ecology metrics"
+    always_retrieve_with: [CC-eco-IHA, PD-salmon-habitat, MC-eco-FIA-NEON-LTER]
+    cross_discipline_anchors:
+      hydrology: [CC-eco-IHA]
+      geomorph: [CC-geomorph-Qs]
+    caveats:
+      - "Multiple metrics (alpha/beta/gamma; richness/Shannon/Simpson) tell different stories."
+
+  CC-eco-trophic-flow:
+    title: "Trophic flux and NEE decomposition"
+    always_retrieve_with: [CC-eco-GPP, MC-eco-isotopes, TC-13]
+    cross_discipline_anchors:
+      atmospheric: [CC-atm-T]
+      geomorph: [TC-13]
+      agriculture: [CC-ag-SOC]
+    caveats:
+      - "Lindeman ~10% rule is order-of-magnitude; transfer efficiencies vary 5-25%."
+
+  MC-eco-eddycov:
+    title: "Eddy covariance (ecology framing)"
+    always_retrieve_with: [MC-hydro-eddycov, CC-eco-GPP, CC-hydro-ET, TC-16]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-eddycov]
+      atmospheric: [CC-atm-PBL]
+      agriculture: [CC-ag-ET0]
+    caveats:
+      - "Same instrument as MC-hydro-eddycov; partition method is the ecology-specific step."
+
+  MC-eco-remote-sensing:
+    title: "Landsat / Sentinel-2 / MODIS / GEDI / SIF / NDVI"
+    always_retrieve_with: [CC-eco-LAI, CC-eco-GPP, MC-geomorph-lidar, MC-ag-NASS-CDL]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-SMAP]
+      geomorph: [MC-geomorph-lidar]
+      agriculture: [MC-ag-yield-monitoring]
+    caveats:
+      - "Cloud cover gaps in optical; NDVI saturates in dense canopies; SIF retrieval sensitive."
+
+  MC-eco-FIA-NEON-LTER:
+    title: "Long-term ecological plot networks"
+    always_retrieve_with: [CC-eco-LAI, CC-eco-species-diversity, MC-eco-remote-sensing]
+    cross_discipline_anchors:
+      atmospheric: [MC-atm-radiosonde]    # NEON cross-instrument
+    caveats:
+      - "FIA coordinates are fuzzed for landowner privacy."
+
+  MC-eco-eDNA:
+    title: "Environmental DNA metabarcoding"
+    always_retrieve_with: [CC-eco-species-diversity, MC-eco-PAM, TC-09]
+    cross_discipline_anchors:
+      seismology: [TC-09]                  # source-attribution analog
+      agriculture: []
+    caveats:
+      - "DNA degradation with time and temperature; quantitative inference is hard."
+
+  MC-eco-PAM:
+    title: "Passive acoustic monitoring (bioacoustics)"
+    always_retrieve_with: [CC-seismo-noise, MC-seismo-DAS, MC-seismo-broadband, CC-eco-species-diversity]
+    cross_discipline_anchors:
+      seismology: [CC-seismo-noise, MC-seismo-DAS]
+      atmospheric: [MC-atm-NEXRAD]         # bird/bat migration
+    caveats:
+      - "Vocabulary collision: 'noise' in seismology vs. soundscape ecology — same physical channel, separate community traditions."
+
+  MC-eco-process-models:
+    title: "Ecosystem process models (CLM, ELM, ED2, JULES)"
+    always_retrieve_with: [CC-eco-GPP, CC-eco-LAI, MC-hydro-modeling, MC-atm-NWP, TC-05, TC-16]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      atmospheric: [MC-atm-NWP]
+      agriculture: [MC-ag-crop-models]
+    caveats:
+      - "Equifinality; local calibration doesn't transfer."
+
+  MC-eco-isotopes:
+    title: "Stable and radioactive isotopes for ecology"
+    always_retrieve_with: [MC-hydro-isotopes, CC-eco-plant-water-source, CC-eco-trophic-flow, TC-09]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-isotopes]
+      seismology: [TC-09]
+    caveats:
+      - "Trophic-fractionation factors species- and tissue-dependent."
+
+  PD-forest-mortality:
+    title: "Drought- and disturbance-driven forest mortality"
+    always_retrieve_with: [CC-eco-GPP, CC-eco-LAI, CC-eco-root-cohesion, CC-atm-q, CC-atm-T, PD-heat-dome, PD-flash-drought, PD-bark-beetle-outbreak]
+    cross_discipline_anchors:
+      atmospheric: [PD-heat-dome, PD-flash-drought]
+      hydrology: [MC-hydro-SMAP]
+      geomorph: [PD-post-fire-erosion]
+    caveats:
+      - "Two failure modes (hydraulic / carbon-starvation; McDowell 2008) on different timescales."
+
+  PD-salmon-habitat:
+    title: "PNW salmon habitat and flow regime"
+    always_retrieve_with: [CC-eco-IHA, CC-hydro-Q, CC-geomorph-Qs, MC-hydro-NWIS, MC-eco-eDNA, TC-17]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, MC-hydro-NWIS]
+      geomorph: [CC-geomorph-Qs, PD-river-floods]
+      atmospheric: [PD-heat-dome]
+    caveats:
+      - "Five PNW Chinook populations ESA-listed; Snake R. sockeye critically endangered."
+      - "Post-Elwha-dam-removal recovery is a natural experiment."
+
+  PD-phenology-shift:
+    title: "Vegetation phenology shifts"
+    always_retrieve_with: [CC-eco-LAI, CC-eco-GPP, CC-atm-T, MC-eco-remote-sensing]
+    cross_discipline_anchors:
+      atmospheric: [CC-atm-T]
+      hydrology: [MC-hydro-SMAP]
+      agriculture: [MC-ag-NASS-CDL]
+    caveats:
+      - "Spring shifts better-studied than autumn."
+      - "Trophic mismatch (Visser & Both 2005) is separate impact axis."
+
+  PD-bark-beetle-outbreak:
+    title: "Bark-beetle outbreaks in Western U.S. forests"
+    always_retrieve_with: [CC-eco-LAI, CC-eco-root-cohesion, CC-atm-T, PD-forest-mortality, PD-post-fire-erosion]
+    cross_discipline_anchors:
+      atmospheric: [CC-atm-T]
+      hydrology: [CC-hydro-Q]              # post-mortality yield increase
+      geomorph: [PD-post-fire-erosion]
+    caveats:
+      - "Climate-driven warmth reduces winter kill and accelerates generation time."
+      - "BC MPB outbreak ~18 Mha lodgepole pine 1996-2014."
+
+  PD-fire-recovery:
+    title: "Post-fire ecosystem recovery"
+    always_retrieve_with: [CC-eco-LAI, CC-eco-GPP, CC-eco-root-cohesion, PD-post-fire-erosion, PD-forest-mortality]
+    cross_discipline_anchors:
+      geomorph: [PD-post-fire-erosion, CC-geomorph-Qs]
+      hydrology: [CC-hydro-Q, MC-hydro-SMAP]
+    caveats:
+      - "Type conversions (forest → grassland after severe fire) increasingly documented under climate change."
+
+  TC-16:
+    title: "ET-GPP leaf coupling"
+    always_retrieve_with: [CC-eco-GPP, CC-eco-LAI, CC-hydro-ET, MC-eco-eddycov, MC-hydro-eddycov]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET, TC-06]
+      atmospheric: [CC-atm-q]
+      agriculture: [CC-ag-yield-water-response]
+    caveats:
+      - "Coupling holds for non-stressed vegetation; severe drought decouples via different failure modes."
+      - "Soil-evaporation contribution dilutes the link; partitioning needed."
+
+  TC-17:
+    title: "IHA framework — flow regime as ecological observable"
+    always_retrieve_with: [CC-eco-IHA, CC-hydro-Q, MC-hydro-NWIS, PD-salmon-habitat]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, MC-hydro-NWIS]
+      geomorph: [CC-geomorph-streampower]
+      atmospheric: []
+    caveats:
+      - "Descriptive framework; coupling to species-specific response requires habitat-suitability models."
+
+  # ===========================================================================
+  # AGRICULTURAL SCIENCES — CONCEPT, METHOD, PHENOMENON, TRANSLATION
+  # ===========================================================================
+
+  CC-ag-ET0:
+    title: "Reference ET and crop coefficient (FAO-56)"
+    always_retrieve_with: [CC-hydro-ET, CC-atm-q, CC-atm-radiation, MC-ag-OpenET, MC-hydro-eddycov, TC-18]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET]
+      atmospheric: [CC-atm-q]
+      ecology: [CC-eco-GPP]
+    caveats:
+      - "Penman-Monteith form: FAO-56 vs. ASCE Standardized vs. Penman 1948 differ subtly."
+      - "K_c values are crop/region/stage specific; textbook values out-of-region introduce bias."
+
+  CC-ag-PAW:
+    title: "Plant available water"
+    always_retrieve_with: [CC-ag-ET0, CC-ag-irrigation-demand, CC-hydro-recharge, MC-hydro-SMAP, MC-ag-soil-data]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-SMAP, MC-hydro-COSMOS]
+      ecology: [CC-eco-plant-water-source]
+      geotech: [TC-02]                       # van Genuchten shared with unsat soil mech
+    caveats:
+      - "θ_FC measurement vs. pedotransfer estimate can differ 5-10%."
+      - "Root-depth assumption dominates effective PAW."
+
+  CC-ag-yield-water-response:
+    title: "Yield response to water (FAO-33)"
+    always_retrieve_with: [CC-ag-ET0, CC-ag-irrigation-demand, MC-ag-crop-models, PD-agricultural-drought]
+    cross_discipline_anchors:
+      ecology: [CC-eco-GPP]
+      hydrology: [CC-hydro-ET]
+    caveats:
+      - "K_y is stage-specific; flowering and grain-filling stress disproportionately damaging."
+      - "CWP units depend on yield definition (grain, biomass, calories, economic)."
+
+  CC-ag-SOC:
+    title: "Soil organic carbon stock"
+    always_retrieve_with: [CC-eco-trophic-flow, CC-geomorph-Qs, MC-ag-soil-data, TC-13, PD-tillage-erosion]
+    cross_discipline_anchors:
+      ecology: [CC-eco-trophic-flow]
+      geomorph: [CC-geomorph-Qs, PD-tillage-erosion]
+      atmospheric: []
+    caveats:
+      - "Sampling depth and equivalent-soil-mass vs. fixed-depth comparison matter."
+      - "'4 per 1000' soil-C climate-mitigation target is aspirational."
+
+  CC-ag-NUE:
+    title: "Nitrogen-use efficiency and agricultural GHG"
+    always_retrieve_with: [CC-ag-SOC, CC-eco-trophic-flow, PD-nutrient-runoff, TC-18]
+    cross_discipline_anchors:
+      hydrology: [PD-nutrient-runoff]
+      atmospheric: []                       # N2O emissions
+      ecology: [PD-nutrient-runoff]
+    caveats:
+      - "NUE definitions vary; specify which."
+      - "Agricultural N2O is dominant N2O source (~25% global GHG)."
+
+  CC-ag-irrigation-demand:
+    title: "Irrigation withdrawal and demand"
+    always_retrieve_with: [CC-ag-ET0, CC-ag-yield-water-response, CC-hydro-recharge, PD-aquifer-depletion, PD-subsidence-consolidation, TC-18]
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-depletion, MC-hydro-GRACE, MC-hydro-NWIS]
+      geotech: [PD-subsidence-consolidation]
+      seismology: []                        # aquifer-loading modulates seismicity
+      atmospheric: []                       # irrigation modifies regional ET
+    caveats:
+      - "Gross vs. net (consumptive); irrigation efficiency assumption."
+      - "70% of global freshwater withdrawals are agricultural."
+
+  MC-ag-soil-moisture:
+    title: "In-situ soil moisture for agriculture"
+    always_retrieve_with: [MC-hydro-SMAP, MC-hydro-COSMOS, CC-ag-PAW, CC-ag-irrigation-demand]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-SMAP, MC-hydro-COSMOS]
+      ecology: [MC-hydro-eddycov]
+    caveats:
+      - "TDR/FDR calibrated to mineral soils underestimate in high-organic-matter."
+      - "Point sensors don't represent surrounding heterogeneity."
+
+  MC-ag-OpenET:
+    title: "Satellite-derived ET for water-rights accounting"
+    always_retrieve_with: [CC-ag-ET0, CC-hydro-ET, MC-hydro-eddycov, MC-eco-remote-sensing, TC-06]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-ET]
+      ecology: [MC-eco-remote-sensing]
+    caveats:
+      - "Cloud cover gaps in optical/thermal; multi-algorithm ensemble gives uncertainty."
+      - "Validation vs. eddy-covariance shows 10-25% MAE typical."
+
+  MC-ag-crop-models:
+    title: "Crop models (DSSAT, APSIM, AquaCrop)"
+    always_retrieve_with: [CC-ag-ET0, CC-ag-PAW, CC-ag-yield-water-response, MC-eco-process-models, MC-atm-NWP]
+    cross_discipline_anchors:
+      ecology: [MC-eco-process-models]
+      atmospheric: [MC-atm-NWP]
+      hydrology: [MC-hydro-modeling]
+    caveats:
+      - "Local calibration doesn't transfer; AgMIP multi-model is the uncertainty approach."
+
+  MC-ag-yield-monitoring:
+    title: "In-field yield monitors and remote-sensing yield estimation"
+    always_retrieve_with: [CC-ag-yield-water-response, MC-eco-remote-sensing, MC-ag-NASS-CDL]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-SMAP]
+      ecology: [MC-eco-remote-sensing]
+    caveats:
+      - "Combine yield-monitor calibration drift; GPS positioning errors."
+
+  MC-ag-NASS-CDL:
+    title: "USDA NASS Cropland Data Layer and Census of Agriculture"
+    always_retrieve_with: [MC-eco-remote-sensing, CC-ag-irrigation-demand, PD-tillage-erosion, PD-climate-adaptation-cropping]
+    cross_discipline_anchors:
+      ecology: [MC-eco-remote-sensing]
+      geomorph: [PD-tillage-erosion]
+    caveats:
+      - "CDL classification accuracy degrades for minor crops and small parcels."
+      - "Privacy fuzz limits sub-county census data."
+
+  MC-ag-soil-data:
+    title: "SSURGO / ROSETTA soil-data infrastructure"
+    always_retrieve_with: [CC-ag-PAW, CC-ag-SOC, MC-hydro-modeling, MC-geomorph-landlab]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      geomorph: [MC-geomorph-landlab]
+      ecology: [CC-eco-plant-water-source]
+    caveats:
+      - "Historical soil surveys are coarse; sub-field variability not captured."
+      - "ROSETTA trained on Midwest U.S. soils; transfer carefully."
+
+  PD-agricultural-drought:
+    title: "Agricultural drought and yield loss"
+    always_retrieve_with: [CC-ag-PAW, CC-ag-yield-water-response, CC-eco-GPP, MC-ag-crop-models, MC-hydro-SMAP, PD-flash-drought]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-SMAP, PD-drought]
+      atmospheric: [PD-flash-drought, PD-heat-dome]
+      ecology: [PD-forest-mortality]
+    caveats:
+      - "Crop-specific stage sensitivity; flash drought during anthesis disproportionately damaging."
+
+  PD-tillage-erosion:
+    title: "Tillage- and wind-driven soil erosion"
+    always_retrieve_with: [CC-geomorph-Qs, CC-geomorph-erosion-rate, CC-ag-SOC, MC-geomorph-lidar, MC-ag-NASS-CDL, TC-13]
+    cross_discipline_anchors:
+      geomorph: [CC-geomorph-Qs, MC-geomorph-sediment-monitoring]
+      hydrology: []                         # sediment yield to streams
+      atmospheric: []                       # dust events
+    caveats:
+      - "PNW Palouse ~50 t/ha/yr on steep slopes; Iowa Corn Belt; South American soy expansion."
+
+  PD-nutrient-runoff:
+    title: "Agricultural nutrient runoff and eutrophication"
+    always_retrieve_with: [CC-ag-NUE, CC-ag-SOC, CC-eco-IHA, MC-hydro-NWIS, PD-tillage-erosion]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-NWIS]
+      ecology: [CC-eco-species-diversity, CC-eco-IHA]
+    caveats:
+      - "Gulf of Mexico hypoxic zone ~12k-22k km²/yr."
+      - "Legacy N in groundwater means decades-long lag to remediation."
+
+  PD-climate-adaptation-cropping:
+    title: "Climate-driven cropping-pattern shifts"
+    always_retrieve_with: [CC-ag-yield-water-response, CC-ag-SOC, CC-atm-T, MC-ag-NASS-CDL, MC-ag-crop-models, TC-18]
+    cross_discipline_anchors:
+      atmospheric: [CC-atm-T, PD-flash-drought]
+      ecology: [CC-eco-species-diversity]
+      hydrology: [CC-ag-irrigation-demand]
+    caveats:
+      - "Endogenous to climate, prices, policy, technology; attribution to climate alone is difficult."
+
+  TC-18:
+    title: "Agriculture as dominant anthropogenic modifier of water, sediment, carbon"
+    always_retrieve_with: [CC-ag-irrigation-demand, CC-ag-NUE, CC-ag-SOC, PD-aquifer-depletion, PD-subsidence-consolidation, PD-tillage-erosion, PD-nutrient-runoff]
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-depletion]
+      geotech: [PD-subsidence-consolidation]
+      geomorph: [PD-tillage-erosion, TC-13]
+      atmospheric: []
+      seismology: [PD-induced-seismicity]   # aquifer loading
+    caveats:
+      - "Field-scale interventions have specific outcomes; cycle-level coupling not always uniform."
+      - "Trade-offs (no-till vs. GHG, cover-crop vs. water use) regime-dependent."
+
+  # ===========================================================================
+  # NEAR-SURFACE GEOPHYSICS — CONCEPT, METHOD, PHENOMENON, TRANSLATION
+  # ===========================================================================
+
+  CC-nsg-resistivity:
+    title: "Electrical resistivity and Archie's law"
+    always_retrieve_with: [CC-nsg-permittivity, CC-nsg-EM-conductivity, MC-nsg-ERT, MC-nsg-AEM, TC-08, TC-19]
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-h, CC-hydro-S]
+      seismology: [CC-seismo-Vs]
+      agriculture: [MC-ag-soil-moisture]
+    caveats:
+      - "Archie's m and n values often misapplied to clay-bearing settings."
+      - "Inversion non-unique; need petrophysical or structural constraints."
+
+  CC-nsg-permittivity:
+    title: "Relative dielectric permittivity for GPR"
+    always_retrieve_with: [MC-nsg-GPR, MC-hydro-COSMOS, MC-ag-soil-moisture, CC-nsg-resistivity]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-COSMOS]
+      agriculture: [MC-ag-soil-moisture]
+      geomorph: [MC-geomorph-lidar]
+    caveats:
+      - "Topp 1980 for soil θ→ε is standard; clay-rich soils need complex permittivity."
+
+  CC-nsg-impedance:
+    title: "Acoustic impedance and reflection coefficient"
+    always_retrieve_with: [CC-seismo-Vs, MC-seismo-MASW, MC-geotech-HVSR, MC-nsg-refraction, TC-08]
+    cross_discipline_anchors:
+      seismology: [CC-seismo-Vs, MC-seismo-MASW]
+      geotech: [MC-geotech-HVSR, PD-site-response]
+    caveats:
+      - "Gassmann assumes fluid-saturated porous media; failure modes in dry/partial-saturation."
+
+  CC-nsg-EM-conductivity:
+    title: "EM conductivity (TEM/FEM/AEM)"
+    always_retrieve_with: [CC-nsg-resistivity, MC-nsg-ERT, MC-nsg-AEM, PD-aquifer-architecture]
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-architecture]
+      agriculture: []
+    caveats:
+      - "AEM near-surface (<10 m) resolution poor compared to ground methods; complementary."
+
+  CC-nsg-gravity:
+    title: "Gravity anomalies and density variations"
+    always_retrieve_with: [MC-nsg-gravity, MC-hydro-GRACE, CC-nsg-impedance, TC-08]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-GRACE]
+      seismology: [TC-08]
+    caveats:
+      - "Depth ambiguity: same anomaly from shallow-high-contrast or deep-low-contrast."
+
+  CC-nsg-magnetics:
+    title: "Total-field magnetic anomalies"
+    always_retrieve_with: [MC-nsg-magnetics, MC-nsg-gravity]
+    cross_discipline_anchors:
+      geomorph: []                          # paleomag stratigraphy, loess
+      geotech: []                           # buried infrastructure
+    caveats:
+      - "IGRF correction; diurnal-variation correction; non-uniqueness in inversion."
+
+  MC-nsg-ERT:
+    title: "Electrical resistivity tomography"
+    always_retrieve_with: [CC-nsg-resistivity, MC-nsg-GPR, MC-nsg-AEM, MC-nsg-joint-inversion, PD-aquifer-architecture, PD-contaminant-plume, TC-08, TC-19]
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-architecture]
+      agriculture: [MC-ag-soil-moisture]
+      geomorph: [MC-geomorph-lidar]
+      geotech: [CC-geotech-FS]
+    caveats:
+      - "Inversion non-unique; regularization controls feature amplitude."
+      - "Smooth inversion smears sharp interfaces."
+
+  MC-nsg-GPR:
+    title: "Ground-penetrating radar"
+    always_retrieve_with: [CC-nsg-permittivity, MC-nsg-ERT, MC-hydro-COSMOS, MC-ag-soil-moisture]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-COSMOS]
+      agriculture: [MC-ag-soil-moisture]
+      geomorph: [MC-geomorph-lidar]
+    caveats:
+      - "Conductive ground attenuates rapidly; penetration depth varies ~10× across PNW soils."
+
+  MC-nsg-AEM:
+    title: "Airborne electromagnetic survey"
+    always_retrieve_with: [CC-nsg-resistivity, CC-nsg-EM-conductivity, MC-nsg-ERT, MC-hydro-GRACE, PD-aquifer-architecture, PD-aquifer-depletion]
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-architecture, PD-aquifer-depletion]
+      agriculture: [CC-ag-irrigation-demand]
+    caveats:
+      - "Cultural noise (powerlines) corrupts data."
+      - "USGS Mississippi Embayment AEM 2018; California DWR statewide ongoing."
+
+  MC-nsg-refraction:
+    title: "Seismic refraction tomography"
+    always_retrieve_with: [MC-seismo-MASW, MC-geotech-HVSR, CC-nsg-impedance, CC-seismo-Vs, MC-nsg-ERT, TC-08]
+    cross_discipline_anchors:
+      seismology: [MC-seismo-MASW]
+      geotech: [MC-geotech-HVSR]
+      geomorph: [MC-geomorph-lidar]
+    caveats:
+      - "Hidden-layer problem: low-V layer below high-V layer not detected from first arrivals."
+
+  MC-nsg-gravity:
+    title: "Ground and airborne gravimetry"
+    always_retrieve_with: [CC-nsg-gravity, MC-hydro-GRACE, MC-nsg-magnetics, TC-08]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-GRACE]
+      seismology: [TC-08]
+    caveats:
+      - "Terrain corrections at high relief require precise topography."
+
+  MC-nsg-magnetics:
+    title: "Ground and airborne magnetic surveys"
+    always_retrieve_with: [CC-nsg-magnetics, MC-nsg-gravity, MC-nsg-ERT]
+    cross_discipline_anchors:
+      geomorph: []                          # paleomagnetic loess
+      geotech: []                           # buried infrastructure
+    caveats:
+      - "Geomagnetic-storm transients can mimic anomalies."
+
+  MC-nsg-joint-inversion:
+    title: "Joint geophysical inversion"
+    always_retrieve_with: [MC-nsg-ERT, MC-nsg-GPR, MC-nsg-AEM, MC-nsg-refraction, MC-seismo-tomography, MC-seismo-MASW, TC-08, TC-19, PD-critical-zone-imaging]
+    cross_discipline_anchors:
+      seismology: [MC-seismo-tomography, TC-08]
+      hydrology: [PD-aquifer-architecture]
+      geomorph: [PD-critical-zone-imaging]
+    caveats:
+      - "Cross-gradient assumes structural alignment; explicit petrophysical coupling needs calibration."
+
+  PD-critical-zone-imaging:
+    title: "Multi-method imaging of the critical zone"
+    always_retrieve_with: [MC-nsg-ERT, MC-nsg-GPR, MC-nsg-AEM, MC-nsg-refraction, MC-nsg-joint-inversion, MC-geomorph-lidar, MC-geomorph-cosmogenic, TC-08, TC-13, TC-19]
+    cross_discipline_anchors:
+      geomorph: [MC-geomorph-lidar, CC-geomorph-D]
+      hydrology: [PD-aquifer-architecture]
+      ecology: [CC-eco-plant-water-source]
+    caveats:
+      - "Standardization across CZ sites elusive."
+      - "3D imaging computationally expensive; most CZ work is 2D."
+
+  PD-aquifer-architecture:
+    title: "Hydrogeophysical aquifer-architecture mapping"
+    always_retrieve_with: [MC-nsg-ERT, MC-nsg-AEM, MC-nsg-joint-inversion, CC-nsg-resistivity, CC-hydro-h, CC-hydro-S, MC-hydro-isotopes, PD-aquifer-depletion, TC-08]
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-depletion, MC-hydro-isotopes, MC-hydro-GRACE]
+      geomorph: [MC-geomorph-lidar]
+      agriculture: [CC-ag-irrigation-demand]
+    caveats:
+      - "Petrophysical link from σ to K is site-specific."
+      - "Mississippi Embayment AEM (USGS); California DWR statewide AEM."
+
+  PD-contaminant-plume:
+    title: "Groundwater contaminant plumes"
+    always_retrieve_with: [CC-nsg-resistivity, MC-nsg-ERT, MC-nsg-AEM, CC-hydro-h, CC-hydro-K, MC-hydro-isotopes, PD-nutrient-runoff]
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-isotopes]
+      agriculture: [PD-nutrient-runoff]
+    caveats:
+      - "Time-lapse ERT plume-volume estimation needs careful background characterization."
+
+  PD-permafrost-thaw:
+    title: "Permafrost monitoring and active-layer dynamics"
+    always_retrieve_with: [MC-nsg-ERT, MC-nsg-GPR, CC-nsg-resistivity, CC-nsg-permittivity, CC-atm-T, MC-atm-ERA5, CC-eco-GPP, MC-eco-eddycov]
+    cross_discipline_anchors:
+      atmospheric: [CC-atm-T, MC-atm-ERA5]
+      ecology: [CC-eco-GPP, MC-eco-eddycov]
+      geomorph: [PD-debris-flow]
+    caveats:
+      - "Permafrost-carbon feedback is dominant uncertainty in century-scale projections."
+      - "PNW relevance limited; high-latitude focus globally."
+
+  TC-19:
+    title: "Critical-zone observability — multi-method imaging stack"
+    always_retrieve_with: [MC-nsg-ERT, MC-nsg-GPR, MC-nsg-AEM, MC-nsg-refraction, MC-nsg-joint-inversion, MC-seismo-MASW, MC-geotech-HVSR, CC-nsg-resistivity, CC-nsg-permittivity, CC-geomorph-D, CC-hydro-K, PD-critical-zone-imaging, PD-aquifer-architecture, TC-08, TC-13]
+    cross_discipline_anchors:
+      hydrology: [PD-aquifer-architecture]
+      geomorph: [PD-critical-zone-imaging]
+      seismology: [MC-seismo-MASW, TC-08]
+      geotech: [MC-geotech-HVSR]
+      ecology: [CC-eco-plant-water-source]
+      agriculture: [MC-ag-soil-moisture]
+    caveats:
+      - "Single-method CZ work is incomplete by definition."
+      - "Petrophysical relations are non-unique; multi-method joint inversion reduces but doesn't eliminate."
+
+# End of v3 complete-corpus entries. 9 disciplines all v3.

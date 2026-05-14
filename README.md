@@ -55,12 +55,36 @@ gaia-translator/
 │       │   ├── phenomenon_dossiers.md
 │       │   └── translation_cards.md
 │       │
-│       └── v2_legacy/               ← awaiting v3 card-pattern restructuring
-│           ├── atmospheric_sciences.md
-│           ├── ecology.md
-│           ├── agricultural_sciences.md
-│           ├── near_surface_geophysics.md
-│           └── geotechnical_engineering.md  (v2 archive; superseded by ../geotechnical_engineering/ v3 cards)
+│       ├── atmospheric_sciences/    ← ✅ v3 done
+│       │   ├── concept_cards.md
+│       │   ├── method_cards.md
+│       │   ├── phenomenon_dossiers.md
+│       │   └── translation_cards.md
+│       │
+│       ├── ecology/                 ← ✅ v3 done
+│       │   ├── concept_cards.md
+│       │   ├── method_cards.md
+│       │   ├── phenomenon_dossiers.md
+│       │   └── translation_cards.md
+│       │
+│       ├── agricultural_sciences/   ← ✅ v3 done
+│       │   ├── concept_cards.md
+│       │   ├── method_cards.md
+│       │   ├── phenomenon_dossiers.md
+│       │   └── translation_cards.md
+│       │
+│       ├── near_surface_geophysics/ ← ✅ v3 done
+│       │   ├── concept_cards.md
+│       │   ├── method_cards.md
+│       │   ├── phenomenon_dossiers.md
+│       │   └── translation_cards.md
+│       │
+│       └── v2_legacy/               ← archived predecessors (v3 supersedes)
+│           ├── atmospheric_sciences.md          (archive)
+│           ├── ecology.md                       (archive)
+│           ├── agricultural_sciences.md         (archive)
+│           ├── near_surface_geophysics.md       (archive)
+│           └── geotechnical_engineering.md      (archive)
 │
 ├── pipeline/                        ← eval-set generation
 │   ├── generate_eval_dataset.py     ← Opus 4.7 drafting + critique pipeline
@@ -141,10 +165,16 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 | Geotechnical engineering — short summary | ✅ complete |
 | Geomorphology — long-form card pattern | ✅ **v3 complete** (8 concept / 7 method / 5 phenomenon / 2 translation cards including TC-13, TC-14) |
 | Geomorphology — short summary | ✅ complete |
-| Other 4 disciplines (atmospheric sciences, ecology, agricultural sciences, near-surface geophysics) — long-form card pattern | 🟡 v2 legacy; awaiting v3 restructuring |
-| Other 4 disciplines — short summaries | 🟡 not yet written |
-| Agent playbook | 🟢 vocab table covers hydro + seismo + geotech + geomorph; needs extension as remaining disciplines land |
-| Co-retrieval index | 🟢 hydrology + seismology + geotechnical_engineering + geomorphology entries; remaining 4 disciplines to follow |
+| Atmospheric sciences — long-form card pattern | ✅ **v3 complete** (8 concept / 7 method / 5 phenomenon / 1 translation = TC-15) |
+| Atmospheric sciences — short summary | ✅ complete |
+| Ecology — long-form card pattern | ✅ **v3 complete** (7 concept / 7 method / 5 phenomenon / 2 translation = TC-16, TC-17) |
+| Ecology — short summary | ✅ complete |
+| Agricultural sciences — long-form card pattern | ✅ **v3 complete** (6 concept / 6 method / 4 phenomenon / 1 translation = TC-18) |
+| Agricultural sciences — short summary | ✅ complete |
+| Near-surface geophysics — long-form card pattern | ✅ **v3 complete** (6 concept / 7 method / 4 phenomenon / 1 translation = TC-19) |
+| Near-surface geophysics — short summary | ✅ complete |
+| Agent playbook | ✅ vocab table covers all 9 disciplines; explicit Agriculture column added |
+| Co-retrieval index | ✅ all 9 disciplines; zero unresolved cross-references |
 | RAG retrieval layer | 🔲 not yet built |
 | Paper corpus | 🔲 not yet built |
 

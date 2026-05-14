@@ -119,28 +119,37 @@ Critical caveats:
 
 Polysemous terms across disciplines. If a user query contains any of these, the agent should disambiguate before responding.
 
-| Term | Hydrology | Geotechnical | Seismology | Geomorphology | Ecology | Atmospheric |
-|---|---|---|---|---|---|---|
-| **Stress** | (rare) | Total σ or effective σ' = σ − p; Mohr-Coulomb τ_f = c' + σ' tan φ' | On a fault: σ_n, τ. Stress drop Δσ. | Bed shear stress τ for sediment entrainment (Shields); also lithostatic stress driving long-term landscape evolution | Physiological / drought stress | Sometimes "thermal stress" |
-| **Permeability** | k [m²]; flow resistance | k governs c_v consolidation rate | k for poroelasticity | (rare; appears in chemical-weathering rates) | (rare) | Magnetic permeability (different physics; collision) |
-| **Diffusivity** | hydraulic, T/S | c_v = k/(γ_w m_v); same diffusion equation as hydrology | seismic-attenuation Q (different) | Hillslope sediment diffusivity κ [m²/yr]; same diffusion equation, ~10¹⁰× slower | (rare) | eddy diffusivity (turbulent parameterization, different) |
-| **Noise** | (rare) | (rare) | Ambient seismic field; meaningful signal | High-frequency bedload-driven seismic signal (`TC-14`); meaningful signal | Ambient acoustic field | Aerosol / instrument noise |
-| **Storage** | aquifer storage S | (rare; m_v is mechanical compressibility, distinct) | (rare) | Sediment storage in floodplain / valley-fill reservoirs (different) | Carbon storage in biomass/soil | Energy storage in ocean / land |
-| **Source** | Recharge source for groundwater | (rare) | Earthquake source mechanism | Sediment source area / catchment provenance | Source water for transpiration | Emission source |
-| **Conductivity** | K hydraulic | (rare) | σ electrical (in MT) | (rare) | (rare) | Thermal conductivity |
-| **Anisotropy** | K_h vs K_v | G/Gmax anisotropy from cyclic fabric (rare; usually isotropic assumption) | Seismic Vs / Vp anisotropy | Bedrock-fabric-controlled erosion patterns | Spatial heterogeneity | (rare) |
-| **Q** | Streamflow [m³/s] | (rare) | Attenuation [dimensionless] — completely unrelated to streamflow | Q_s sediment flux [kg/s, m³/yr] — DIFFERENT physical quantity, same letter | (rare) | (rare) |
-| **Magnitude** | (rare) | (rare) | Moment magnitude Mw | Loosely used for "landslide magnitude" or "flood magnitude"; not a unique scale | (rare) | Storm intensity (different scale conventions) |
-| **Attenuation** | Tracer attenuation in transport | Damping ratio ξ(γ); near-surface contributes to apparent seismic Q | Seismic Q; intrinsic vs scattering | (rare) | Light attenuation in canopy | Aerosol / radiative attenuation |
-| **Consolidation** | (rare) | Time-dependent volumetric strain under load; Terzaghi 1D | (rare) | (rare) | "Population consolidation" — entirely different (social-ecology context) | (rare) |
-| **Settlement** | (rare) | Vertical displacement under load (immediate, primary consolidation, secondary creep) | (rare) | (rare) | (rare) | (rare); note "settlement" can mean human settlement in social-science context |
-| **FS / factor of safety** | (rare) | τ_f / τ_d for slope stability (engineered slope) | (rare) | Same equation on natural hillslopes (Iverson 2000; `TC-11`) | (rare) | (rare) |
-| **CSR** | (rare) | Cyclic stress ratio for liquefaction triggering — NOT corporate social responsibility | (rare) | (rare) | (rare) | (rare) |
-| **Damping** | (rare) | Hysteretic damping ratio ξ in soils (G/Gmax framework) | Anelastic attenuation / Q | (rare) | (rare) | Radiative damping (different) |
-| **Vs / Vs30** | (rare) | Site-classification Vs30 in design codes; same physical Vs as seismology, sampled by borehole in upper 30 m | Shear-wave velocity Vs = √(μ/ρ); same physical quantity at all depths | (rare) | (rare) | (rare) |
-| **Scarp** | (rare) | (rare) | Coseismic rupture-surface offset (slip event) | Long-term fault-scarp morphology, integrating multiple events; diffusion-degraded form (`PD-fault-scarp`) | (rare) | (rare) |
-| **Knickpoint** | (rare) | (rare) | (rare) | Convex break in channel long profile; tectonic, lithologic, or autogenic origin | (rare) | (rare) |
-| **Concavity** | (rare) | (rare) | (rare) | Channel-profile concavity exponent θ in slope-area; m/n in stream-power model | (rare) | (rare) |
+| Term | Hydrology | Geotechnical | Seismology | Geomorphology | Atmospheric | Ecology | Agricultural | Near-surface geophysics |
+|---|---|---|---|---|---|---|---|---|
+| **Stress** | (rare) | Total σ or effective σ' = σ − p; Mohr-Coulomb τ_f = c' + σ' tan φ' | On a fault: σ_n, τ. Stress drop Δσ. | Bed shear stress τ for sediment entrainment (Shields); also lithostatic stress | Sometimes "thermal stress" | Physiological / drought stress | Crop water stress | (rare) |
+| **Permeability** | k [m²]; flow resistance | k governs c_v consolidation rate | k for poroelasticity | (rare; chemical-weathering rates) | Magnetic permeability (collision) | (rare) | k for irrigation drainage | k for hydrogeophysics |
+| **Diffusivity** | hydraulic, T/S | c_v = k/(γ_w m_v); same diffusion equation | seismic-attenuation Q (different) | Hillslope κ [m²/yr]; same equation, ~10¹⁰× slower | eddy diffusivity (turbulent parameterization, different) | (rare) | (rare) | (rare) |
+| **Noise** | (rare) | (rare) | Ambient seismic field; meaningful signal | High-frequency bedload signal (`TC-14`) | Aerosol / instrument noise | Ambient acoustic field (`MC-eco-PAM` vocabulary collision with seismic) | (rare) | (rare) |
+| **Storage** | aquifer storage S | (rare; m_v distinct) | (rare) | Sediment storage in floodplain / valley fill | Energy storage in ocean / land | Carbon storage in biomass/soil | Reservoir storage, grain storage | (rare) |
+| **Source** | Recharge source for groundwater | (rare) | Earthquake source mechanism | Sediment source area / provenance | Emission source | Source water for transpiration | (rare) | (rare) |
+| **Conductivity** | K hydraulic | (rare) | σ electrical (in MT) | (rare) | Thermal conductivity | (rare) | EC of soil (salinity) | σ electrical (Archie's law) |
+| **Anisotropy** | K_h vs K_v | G/Gmax anisotropy (rare) | Seismic Vs / Vp anisotropy | Bedrock-fabric-controlled erosion | (rare) | Spatial heterogeneity | (rare) | Resistivity / seismic anisotropy |
+| **Q** | Streamflow [m³/s] | (rare) | Attenuation [dimensionless] | Q_s sediment flux — DIFFERENT physical quantity, same letter | (rare) | (rare) | Discharge of irrigation systems | (rare) |
+| **Magnitude** | (rare) | (rare) | Moment magnitude Mw | "Landslide / flood magnitude" (loose) | Storm intensity (different scales) | (rare) | (rare) | (rare) |
+| **Attenuation** | Tracer attenuation | Damping ratio ξ(γ) | Seismic Q | (rare) | Aerosol / radiative attenuation | Light attenuation in canopy | (rare) | Signal attenuation in GPR/EM |
+| **Consolidation** | (rare) | Terzaghi 1D ∂u/∂t = c_v ∂²u/∂z² | (rare) | (rare) | (rare) | "Population consolidation" (social-ecology, different) | (rare) | (rare) |
+| **Settlement** | (rare) | Vertical displacement under load | (rare) | (rare) | (rare; "human settlement") | (rare) | (rare) | (rare) |
+| **FS / factor of safety** | (rare) | τ_f / τ_d engineered slope | (rare) | Natural-hillslope FS (`TC-11`) | (rare) | (rare) | (rare) | (rare) |
+| **CSR** | (rare) | Cyclic stress ratio for liquefaction — NOT corporate social responsibility | (rare) | (rare) | (rare) | (rare) | NOT cropping system rotation (use "rotation") | (rare) |
+| **Damping** | (rare) | Hysteretic damping ξ in soils | Anelastic attenuation / Q | (rare) | Radiative damping (different) | (rare) | (rare) | (rare) |
+| **Vs / Vs30** | (rare) | Vs30 design-code site classification | Vs = √(μ/ρ) physical | (rare) | (rare) | (rare) | (rare) | Same Vs at NSG depths (`TC-12`) |
+| **Scarp** | (rare) | (rare) | Coseismic rupture offset | Long-term fault-scarp morphology (`PD-fault-scarp`) | (rare) | (rare) | (rare) | (rare) |
+| **Knickpoint** | (rare) | (rare) | (rare) | Convex break in channel long profile | (rare) | (rare) | (rare) | (rare) |
+| **Concavity** | (rare) | (rare) | (rare) | Channel-profile θ in slope-area model | (rare) | (rare) | (rare) | (rare) |
+| **ET / ET₀** | Actual ET = T + E_soil + E_intercept (`CC-hydro-ET`) | (rare) | (rare) | (rare) | Atmospheric demand for moisture | Coupled to GPP via stomatal conductance (`TC-16`) | Reference ET₀ × crop coefficient K_c (`CC-ag-ET0`) | (rare) |
+| **Drought** | Hydrological drought (`PD-drought`) | (rare) | (rare) | Post-drought erosion susceptibility | Meteorological drought | Drought stress / mortality (`PD-forest-mortality`) | Agricultural drought / yield loss (`PD-agricultural-drought`) | (rare) |
+| **Recharge** | Groundwater recharge R (`CC-hydro-recharge`) | (rare) | (rare) | (rare) | (rare) | (rare) | Irrigation return flow (different) | (rare) |
+| **Soil moisture** | θ volumetric (`MC-hydro-SMAP`, `MC-hydro-COSMOS`) | Water content for liquefaction analysis | (rare) | Antecedent moisture for landslide triggering | Boundary condition for land-atmosphere coupling | Plant-water availability | PAW for irrigation triggering (`CC-ag-PAW`) | ε_r-inferred via Topp (`CC-nsg-permittivity`) |
+| **Productivity** | Aquifer productivity (well yield) | (rare) | (rare) | Landscape sediment production | (rare) | GPP / NPP carbon flux (`CC-eco-GPP`) | Crop water productivity CWP (yield/ET) | (rare) |
+| **Resistivity** | (rare) | (rare; sometimes shear-deformation resistance) | (rare) | (rare) | (rare) | (rare) | Soil ECa for salinity / drainage | ρ_e [Ω·m]; Archie's law (`CC-nsg-resistivity`) |
+| **Rotation** | (rare) | (rare) | Receiver-function rotation (different) | (rare) | (rare) | (rare) | Crop rotation (cycling crop species) | (rare) |
+| **Yield** | Well yield, aquifer-specific yield Sy | (rare) | Stress drop "yield strength" of fault | (rare) | (rare) | Biomass yield | Crop yield (mass/ha) — the central economic observable | (rare) |
+| **Tillage** | (rare) | (rare) | (rare) | Tillage erosion (Govers 1994; `PD-tillage-erosion`) | Dust emissions from tilled fields | Disturbance regime in agroecology | Tillage operations and conservation-tillage | (rare) |
 
 Disambiguation move: if a query is ambiguous, ask one short clarifying question before answering. Example: "When you say 'permeability', do you mean hydraulic permeability k [m²] or magnetic permeability μ?"
 
