@@ -1,22 +1,26 @@
 # Gaia translator — roadmap
 
-Sorted by priority. Each phase has a goal, the concrete deliverables, the upstream dependencies it unblocks, the success criteria, and a rough effort estimate. Phases are mostly sequential because the corpus, the retrieval layer, the eval set, and the expert platform have hard dependencies in that order; where parallel work is possible it is flagged.
+Sorted by priority. Each phase has a goal, the concrete deliverables, the upstream dependencies it unblocks, the success criteria, and a rough effort estimate. Where parallel work is possible it is flagged.
+
+**Critical-path summary (post-revision)**: Phase 3 linter (3 days) → Phase 4 low-level translator tool (2–3 weeks, Derek) → Phase 6 eval set expansion (4 weeks, partially parallelizable) → Phase 7 expert evaluation (6 weeks staged; v1 platform already built) → Phase 8 iteration + release (4 weeks). Roughly **~6 months elapsed from now to a peer-reviewable published methodology**, with most weeks running concurrent threads (corpus QA + tool dev + reviewer recruitment).
 
 Status as of this document:
 
-- Seismology v3 corpus ✅ (8 / 7 / 5 / 3 cards)
-- Geotechnical engineering v3 corpus ✅ (7 / 7 / 4 / 3 cards including the new `TC-12`)
-- Hydrology v3 — claimed-complete in README but *files are missing from the workspace*; this is the single largest blocker
+- All 9 disciplines v3-complete ✅ (170 cards: hydrology 27, seismology 23, geomorphology 22, atmospheric_sciences 21, ecology 21, geotechnical_engineering 21, near_surface_geophysics 18, agricultural_sciences 17)
 - Cross-cutting concepts skill ✅
-- Card format spec ✅ (`docs/card_format_spec.md`)
-- Agent playbook 🟡 (skeleton + vocab table for hydro / seismo / geotech)
-- Co-retrieval index 🟡 (hydro + seismo + geotech)
+- Card format spec ✅ with calibrated word-count caps
+- Agent playbook ✅ with 8-discipline vocab table (including Agriculture column)
+- Co-retrieval index ✅ with 170 entries; zero unresolved references
+- 9 system-prompt summaries ✅
+- Eval platform v1 ✅ (Sheets template + reviewer instructions docx + meeting agenda + signup form + 3 calibration QAs + architecture note + private STRATEGY.md)
 - Eval set v2 ✅ (60 QAs across 9 disciplines, xlsx + JSON)
-- Pipeline 🟡 (only `additional_seed_qas.py` present in workspace; `seed_qa_dataset.py`, `generate_eval_dataset.py`, `build_review_spreadsheet.py` referenced in README but not in workspace)
-- RAG retrieval layer 🔲
-- Paper corpus 🔲
-- Working chatbot 🔲
-- Expert evaluation platform 🔲
+- Pipeline 🟡 (`additional_seed_qas.py` present; `seed_qa_dataset.py`, `generate_eval_dataset.py`, `build_review_spreadsheet.py` need re-creation as part of Phase 6)
+- Card linter 🔲 (Phase 3 remaining deliverable, ~3 days)
+- **Low-level translator tool** 🔲 (Phase 4, Derek's work, ~2–3 weeks)
+- Eval set v3 (300 QAs) 🔲 (Phase 6)
+- Expert evaluation rounds 🔲 (Phase 7)
+- ~~RAG retrieval layer~~ ⏸ deferred to future option
+- ~~Paper corpus~~ ⏸ deferred to future option
 
 ---
 
@@ -64,67 +68,113 @@ Status as of this document:
 
 ---
 
-## Phase 3 — Card format spec calibration and quality audit (~1 week)
+## Phase 3 — Card-spec linter (~3 days; partially complete)
 
-**Goal.** Reconcile the `≤200 words` aspiration in the spec with the actual reference standard (seismology + geotech cards run 260–470 words). Decide which is canonical and bring everything into line.
+**Status.** Spec calibration is done: `docs/card_format_spec.md` was updated with calibrated word-count targets and hard caps (concept 450, method 450, phenomenon 500, translation 550). The full 9-discipline corpus (170 cards) all sit under the caps. The only remaining deliverable in this phase is the linter.
 
-**Why now.** Three discipline corpora are about to be authored. Setting the bar once, before the bulk of authoring, avoids inconsistent density across the corpus.
+**Remaining deliverable.** `pipeline/lint_cards.py` that enforces, on the v3 corpus:
 
-**Deliverables.**
-1. Decide canonical word-count target. Recommendation: ~250 words for concept and method, ~350 for phenomenon, ~400 for translation. Update `docs/card_format_spec.md`.
-2. Run a uniformity audit across seismology + geotech + the new hydrology cards. Flag outliers (TC-12 at 468 words, CC-seismo-Vs at 430 words — both probably justified, but the audit should explicitly bless them).
-3. Add a card linter script (`pipeline/lint_cards.py`) that checks: word count, required sections, DOI coverage, presence of cross-discipline equivalents, presence of "when you see this in a paper" hook. Run in CI eventually.
+- Word-count caps per card type.
+- Required sections (Quantity / Defining relation / Typical ranges / Cross-discipline equivalents / When-you-see-this-in-a-paper / Anchor citations / Related cards for concept cards; analogous sections for other types).
+- DOI coverage: every anchor citation either has a DOI or is justified as DOI-less (legacy pre-2000 papers, books).
+- At least one explicit cross-discipline equivalent in every concept and method card.
+- The "when you see this in a paper" hook present in every concept and method card.
+- All `CC-/MC-/PD-/TC-` references in card bodies resolve to defined cards (extension of the verification script we've been running).
 
-**Success criteria.** Linter passes on the full v3 corpus.
+**Success criteria.** Linter passes on the full v3 corpus; failures are exactly the known acceptable exceptions (DOI-less books, etc.) that get an explicit allow-list entry.
 
-**Effort.** ~1 week including the linter.
-
----
-
-## Phase 4 — RAG retrieval layer (~3–4 weeks)
-
-**Goal.** Build the retrieval system the cards were designed for. The cards are useless until something can fetch them in response to a user query.
-
-**Deliverables.**
-1. **Card chunker.** One chunk per card (the corpus is already chunked at the card level by design). Output: JSONL with `id`, `discipline`, `card_type`, `title`, `body`, `cross_references`, `cited_dois`.
-2. **Embedding pipeline.** Embed each card with a single model — recommend `voyage-3` or `text-embedding-3-large` (OpenAI) initially; later evaluate Cohere, BGE, or a fine-tuned encoder.
-3. **Retriever.** Hybrid search: dense (embeddings) + sparse (BM25) + structured (co-retrieval index for guaranteed co-retrieval of `always_retrieve_with` cards). Output top-k cards plus their guaranteed co-retrieval expansions.
-4. **Query classifier.** A small Claude call (Haiku) that tags each query with one of the four agent-playbook flows (interpret-paper / integration / vocabulary / joint-observation) and identifies candidate discipline(s) for routing.
-5. **Vocabulary disambiguator.** A pre-retrieval pass that checks the playbook's vocabulary table and inserts a clarification turn when needed.
-6. **System-prompt assembly.** Inject the appropriate summary cards + the agent playbook + the retrieved long-form cards.
-
-**Architecture choice.** Start with FAISS-on-disk + a thin Python wrapper. Migrate to Qdrant or Weaviate only when latency or scale demands it. Cards fit comfortably in a single in-memory index.
-
-**Success criteria.** Top-3 retrieval contains the correct anchor card for ≥80% of the 60-QA eval set; top-10 contains it for ≥95%. This is a precondition for evaluating the chatbot.
-
-**Effort.** ~3 weeks for a working system; another week for tuning and evaluation.
-
-**Dependency.** Phases 1–3 (corpus must be complete and consistent).
+**Effort.** ~3 days.
 
 ---
 
-## Phase 5 — Paper corpus and inference loop (~3 weeks)
+## Phase 4 (revised) — Low-level translator tool (~2–3 weeks)
 
-**Owner**: Derek (student) is leading the chatbot inference-loop build as a separate workstream that runs in parallel with Phases 6–7 of the eval-side roadmap. Coordination with the eval platform happens through the shared data schema in `eval_platform/` (the chatbot logs retrieval sets and responses in the format the scoring app expects) and through periodic sync on what the cards/playbook need to surface for the agent.
+**This is the working chatbot.** No retrieval layer, no curated paper corpus, no vector store. The user supplies the document context (paper to interpret); the system supplies the framework (cards as Claude Skills or system-prompt context). Stuffs the entire corpus into the context budget — fits comfortably for Opus 4-class models at ~75k tokens of card content out of 200k context.
 
-**Goal.** Wire the retrieval layer to Claude inference, so the chatbot can actually answer a query. Add a small corpus of anchor papers (PDFs / text) so the chatbot can quote primary sources beyond the cards.
+**Owner**: Derek (student) leads.
+
+**Goal.** A single-shot Python tool that takes a research question (always) plus an optional document (PDF or URL/HTML) and returns a structured translation organized by the four card categories plus whatever the user is specifically asking.
+
+**Inputs**:
+- `prompt` (required): the user's research question or translation request.
+- `paper` (optional): a PDF file (Claude has native PDF support).
+- `url` (optional): a URL to a paper or article (HTML fetched via `web_fetch` and passed as text).
+- Mutually exclusive: either `paper` or `url` or neither, not both. (Multi-document support is a future extension.)
+
+**Output** (JSON + Markdown rendering):
+
+```json
+{
+  "user_query": "...",
+  "input_document": {"type": "pdf|url|none", "source": "...", "title": "..."},
+  "primary_disciplines_detected": ["seismology", "geotechnical_engineering"],
+  "concept_matches": [
+    {"card_id": "CC-seismo-Vs", "title": "...", "relevance": "...", "anchor_citations": [...]}
+  ],
+  "method_matches":      [{"card_id": "MC-...", ...}],
+  "phenomenon_matches":  [{"card_id": "PD-...", ...}],
+  "translation_matches": [{"card_id": "TC-...", ...}],
+  "vocabulary_collisions_flagged": [...],
+  "refusals_or_caveats": [...],
+  "user_specific_response": "Direct answer to the user's question: ..."
+}
+```
 
 **Deliverables.**
-1. **Anchor paper corpus.** Pull the ~100 anchor papers already cited in the cards. Store as `corpus/papers/<doi-slug>.pdf` + extracted text + chunked embeddings. Respect publisher licenses — use open-access where available; for paywalled, store metadata + DOI and rely on the card summary plus a `read more` link.
-2. **Inference loop.** Python module (`gaia_translator/agent.py`) that takes a user query, runs disambiguation → retrieval → system-prompt assembly → Claude inference → response. Logs the retrieval set, the prompt, and the response in JSON in the format consumed by the eval scoring app.
-3. **Refusal & citation discipline.** Implement the refusal patterns from `agent_playbook.md` as response-time guardrails (e.g., regex / Claude self-check that flags any citation not in the retrieved context).
-4. **Conversation memory.** Maintain disambiguation state and prior turn context across a multi-turn session; persist as JSON.
-5. **CLI and minimal web demo.** A `gaia` CLI for local use; a **Gradio** chat demo for sharing externally (eventually embeddable in the gaia-hazlab.github.io showcase). Gradio (not Streamlit) for the public chat demo: `gr.ChatInterface` is best-in-class for streaming chat UIs and Hugging Face Spaces is the natural home. (Reviewer scoring app uses Streamlit — different role; see Phase 7c.)
 
-**Success criteria.** End-to-end demo on the existing 60 QAs returns plausible, cited answers with no fabricated DOIs.
+1. **Document ingestion**. PDF support (Claude native). URL/HTML support via `mcp__workspace__web_fetch` or equivalent + html-to-text extraction.
+2. **Skill-based context loading**. Discipline summaries (~10k tokens) + agent playbook (~3k) + cross-cutting concepts (~3k) always loaded. Long-form cards (~70k for the full corpus) loaded either entirely-on for Opus, or selectively via Claude Skills based on which disciplines the query/document touches.
+3. **Vocabulary disambiguator**. Pre-process the query against the playbook's vocab table; insert a clarification turn when a polysemous term is ambiguous.
+4. **Structured-output inference**. System prompt instructs the model to organize its response by card category, with each match including the card ID, title, and a brief relevance statement. The user-specific response section is the free-form synthesis the user actually asked for.
+5. **Citation-discipline guardrail**. Post-hoc verification that every cited DOI or paper appears in either (a) the loaded skill context (the cards themselves carry their anchor citations), or (b) the user-supplied document. Flag any out-of-context citation as a potential fabrication for human review.
+6. **CLI and a Gradio demo**. `gaia translate "..."  [--paper file.pdf | --url https://...]` for local use; Gradio web demo (Hugging Face Spaces hosting) embeddable in `gaia-hazlab.github.io`.
+7. **Logging**. JSON log of every inference for downstream evaluation; format matches the eval scoring app's expected schema in `eval_platform/`.
 
-**Effort.** ~3 weeks for the inference loop and the demo; another 1–2 weeks for the paper corpus.
+**Success criteria.** End-to-end demo on the existing 60 QAs returns structured responses with: zero fabricated DOIs (verified by the citation guardrail), correctly-identified primary disciplines (>= 85% accuracy on a 30-QA spot check), and category-organized output that maps cleanly into the eval scoring spreadsheet.
 
-**Dependency.** Phase 4 (retrieval layer). The chatbot work can run in parallel with Phases 6–7 as long as the data schema is stable.
+**Effort.** ~2 weeks for the core tool; +0.5 week for the Gradio demo; +0.5 week for citation guardrail and logging. Total ~2–3 weeks.
 
-**Hidden cost.** Cleaning paper PDFs and extracting clean text is always slower than expected. Budget 1 week for the paper corpus alone.
+**Dependency.** Phase 3 (linter complete is helpful but not strictly required; a clean corpus is required, which Phases 1–2 already deliver).
 
-**Coordination with the eval side.** The chatbot's output format (question, retrieved cards, model answer, retrieval log) maps directly to the scoring spreadsheet's columns. Lock this schema between Derek and the eval-platform owner before the chatbot generates the first batch of answers to score — schema drift here invalidates the eval set.
+**Coordination with the eval side.** The output JSON schema must be locked between Derek and the eval-platform owner *before* the tool starts generating answers for scoring. **The draft is in `docs/phase4_output_schema.md`** (Pydantic v2 + worked examples on the three calibration QAs + per-section scoring map + 8 open decisions for the lock meeting). Schema drift after the eval has started invalidates the calibration round.
+
+**What's intentionally NOT in this phase.**
+- No curated paper corpus (deferred to "Future option" below).
+- No autonomous paper retrieval (deferred).
+- No vector DB / embeddings / FAISS / Qdrant (deferred).
+- No multi-document QA (single-document only).
+- No multi-turn conversation memory (added in optional Phase 5 if needed).
+
+---
+
+## Phase 5 (optional / deferred to post-evaluation) — Multi-turn orchestration
+
+**Goal.** Convert the single-shot Phase 4 tool into a conversational agent with session memory and the four explicit user flows from `agent_playbook.md` (paper interpretation, integration, vocabulary disambiguation, joint observation).
+
+**Why optional.** A useful research tool can ship without this. The four flows are useful prompts; making them explicit modes is helpful only if the single-shot interface proves friction-laden in user testing. Promote to active phase only if Phase 7 expert feedback calls for it.
+
+**Effort.** ~2 weeks if/when activated. Builds on Phase 4 without modification — the orchestration layer is pure Python around the single-shot core.
+
+---
+
+## Future option — Full RAG with curated paper corpus (deferred indefinitely)
+
+**Not on the critical path.** Reactivate only if a downstream need surfaces:
+
+- **Autonomous paper recommendation**: "What three papers should I read on X?" without the user providing the source material.
+- **Productization for non-researcher users**: a startup-track product targeting users who don't want to upload papers themselves.
+- **Embedding-aware RLHF/DPO study**: a controlled comparison of retrieval-conditioned vs. skill-conditioned generation as a research question in its own right.
+- **Coverage beyond the user's library**: cases where the relevant anchor papers are not in the user's hand and the agent must surface them.
+
+**If reactivated, scope** (≈ 4 weeks):
+
+- Card chunker: JSONL with `id`, `discipline`, `card_type`, `title`, `body`, `cross_references`, `cited_dois` per card.
+- Embedding pipeline: voyage-3 or text-embedding-3-large; one embedding per card.
+- Hybrid retriever: dense + BM25 + structured co-retrieval (`always_retrieve_with`); FAISS-on-disk to start.
+- Anchor paper corpus: ~100 papers from the cards' anchor-citation lists; PDF + extracted text + chunked embeddings; respect publisher licenses.
+- Replace skill-loaded context in the Phase 4 tool with retrieval-conditioned context; everything downstream of context assembly stays the same.
+
+This is a real architectural upgrade and worth tracking, but it is *not* what the GAIA HazLab agenda needs in the next year.
 
 ---
 
@@ -144,11 +194,20 @@ Status as of this document:
 
 **Success criteria.** Krippendorff's α ≥ 0.7 across the calibration set; QA distribution is approximately balanced; gold-standard answers are reviewed by the user.
 
-**Effort.** ~4 weeks.
+**Effort.** ~4 weeks; can run in parallel with the second half of Phase 4 once the tool's output schema is locked.
 
-**Dependency.** Phases 4–5 (so the chatbot can generate the answers being scored).
+**Dependency.** Phase 4 (the low-level translator tool — so the chatbot can generate the structured answers being scored). The structured output schema is the contract between Phase 4 and Phase 6 / 7.
 
-**Reuse.** `additional_seed_qas.py` and `seed_qa_dataset.py` (once recovered or rewritten) become the v3 generators.
+**Reuse.** `additional_seed_qas.py` and `seed_qa_dataset.py` (once recovered or rewritten) become the v3 generators. The structured-output format simplifies QA design: each QA produces an expected CC/MC/PD/TC match set plus an expected user-specific response section, making per-section scoring tractable.
+
+**Adaptation for the structured output**. The 8-criterion rubric in `eval_platform/` applies per-section as well as overall:
+- Technical accuracy, citation discipline, vocabulary precision are scored on each card-category section.
+- Cross-discipline integration is scored on the translation-card section specifically.
+- Refusal correctness is scored on the refusals-or-caveats section.
+- Completeness and presentation are scored on the overall response.
+- Overall usefulness is the holistic judgment.
+
+This per-section scoring is cleaner than scoring a single free-form answer and should improve reviewer IRR.
 
 ---
 
@@ -213,16 +272,16 @@ Code layout suggestion: a separate repo `gaia-eval-app` (or a `streamlit_app/` d
 
 ### Funding and team
 
-The full roadmap is ~30 weeks of focused effort. Confirmed assignments and rough resourcing:
+Post-revision roadmap is ~18 weeks of focused effort (was ~30 in the RAG-included version). Confirmed assignments and rough resourcing:
 
-- **PI (Marine)** at ~10% time for scientific direction, card authoring quality control, expert recruitment, and meeting facilitation.
-- **Derek (student)** owns Phase 5: chatbot inference loop, paper corpus, Gradio public chat demo. Runs in parallel with Phases 6–7 once the v3 corpus and retrieval layer (Phase 4) are in place.
-- **Eval-platform owner** (TBD — postdoc, grad student, or part-time engineer hire): card authoring for the remaining 5 disciplines (Phase 2), retrieval layer (Phase 4), eval-set expansion (Phase 6), Streamlit reviewer app (Phase 7c), aggregation and IRR analysis.
+- **PI (Marine)** at ~10% time for scientific direction, expert recruitment, meeting facilitation, and final-quality review of card revisions.
+- **Derek (student)** owns Phase 4: low-level translator tool, structured-output design, citation guardrail, CLI + Gradio demo. ~2–3 weeks of focused work + ongoing maintenance.
+- **Eval-platform owner** (TBD — postdoc, grad student, or part-time engineer hire): Phase 3 linter (small), Phase 6 eval-set expansion (substantial), Phase 7c Streamlit reviewer app (substantial), aggregation and IRR analysis.
 - **Domain-expert reviewers**: 15–25 across the 9 disciplines, recruited from UW colleagues, AGU networks, and the GAIA HazLab collaborator pool. Time commitment 5–8 hours each over six weeks.
 
-The remaining open staffing question is whether the eval-platform owner is one full-time person for 6 months, two grad students at half-time, or split across a postdoc plus a ~6-week external software-engineer engagement for the Streamlit app specifically.
+The remaining open staffing question is whether the eval-platform owner is one focused person for ~3 months or split across multiple part-time hires.
 
-Honoraria budget for reviewers: 15–25 × $250 ≈ $4–6k. API spend for chatbot inference + eval generation: ~$2–5k. Total cash budget on top of personnel: ~$10k.
+Honoraria budget for reviewers: 15–25 × $250 ≈ $4–6k. API spend for chatbot inference + eval generation (now lower since no embedding indexing): ~$2–4k. Total cash budget on top of personnel: ~$8–10k.
 
 This effort dovetails with the NSF IDSS proposal preparation: the Gaia translator is a candidate Category I or II IDSS deliverable, and the eval set is itself a national-scale data product. The `nsf-idss-proposal-preparer` skill can frame this directly.
 
@@ -240,19 +299,23 @@ Three publication outputs are likely:
 
 ### Risk register
 
-- **Hydrology cards never materialize.** Blocks everything downstream. Mitigation: schedule Phase 1 as the first hard deliverable, with a backup plan to author from scratch using the v2 legacy hydrology file if the v3 drafts are not found.
-- **Expert recruitment under-delivers.** Mitigation: start recruitment in Phase 6, well before the platform is live; offer co-authorship and a streamlined first review (5 QAs to validate engagement).
-- **LLM cost.** Generating 300 QAs + scoring + the chatbot itself costs real money. Budget ~$2,000–$5,000 in API spend for the full roadmap; verify against awarded grants.
-- **Citation fabrication.** The single most dangerous failure mode for a research-context chatbot. Phase 5's citation-discipline guardrail must be evaluated explicitly in Phase 7.
+- ~~**Hydrology cards never materialize.**~~ Resolved in Phase 1.
+- **Expert recruitment under-delivers.** Mitigation: start recruitment now (parallel with Phase 4 development); offer co-authorship and a streamlined first review (3 calibration QAs to validate engagement).
+- **LLM cost.** Generating 300 QAs + 25 inference runs per QA × per reviewer + the eval scoring rounds. With the simplified Phase 4 (no embedding indexing, no paper-corpus ingestion), per-inference token budget is ~80k input + ~10k output = ~$1.50 per Opus inference. 300 QAs × 5 inferences/QA × $1.50 ≈ $2,250 for full eval set generation. Plus calibration and revision rounds. Budget ~$3–5k total.
+- **Citation fabrication.** The single most dangerous failure mode for a research-context chatbot. Phase 4's citation-discipline guardrail (every cited DOI must appear in either the loaded skill context or the user-supplied document) must be evaluated explicitly in Phase 7. The simpler skill-loaded architecture makes verification cleaner than a retrieval-based system would.
+- **Skill-loading token budget.** Stuffing the full 9-discipline corpus into context is ~75k tokens, comfortable for Opus but tight for Sonnet/Haiku. Mitigation: implement selective skill loading via Claude Skills if benchmarking shows the always-on approach is too expensive at scale.
+- **Single-document limitation.** Phase 4 takes one paper at a time. For multi-paper meta-analysis questions, the tool will need extending. This is a real limitation but matches the dominant user workflow (interpret *this* paper) and is acceptable for v1.
 
 ---
 
 ## Decision points
 
-Phases 1 and 2 are now scoped and underway; the remaining open decisions:
+Phases 1 and 2 are complete; corpus is 9-discipline-v3 and the eval platform v1 is built. The remaining open decisions:
 
-1. **Eval-platform staffing.** Phase 2 (cards for 5 remaining disciplines), Phase 4 (retrieval), Phase 6 (eval-set expansion), and Phase 7 (Streamlit reviewer app) need an owner. Postdoc, grad student, external engineer for the app portion, or some split?
-2. **Schema lock between Derek and the eval platform.** The chatbot's response-and-retrieval-log JSON must match the scoring spreadsheet's columns. Schedule a 30-minute sync between Derek and the eval-platform owner before Phase 5 work starts producing artifacts.
-3. **Funding gate.** Reviewer honoraria (~$5k) and API spend (~$3k) — confirmed against an existing grant, or does Phase 7 wait for additional support?
-4. **Publication venue.** AGU Advances vs. Reviews of Geophysics vs. Eos — affects Phase 8 framing and rigor target on the held-out re-evaluation. Possibly also a separate *Scientific Data* descriptor paper for the open eval dataset.
-5. **Public chatbot demo timing.** Phase 5 delivers a Gradio demo; do we embed it in the gaia-hazlab.github.io showcase immediately, or hold until the v3 corpus covers all 9 disciplines so a public-facing demo doesn't disappoint on out-of-corpus questions?
+1. **Phase 4 output schema.** Lock between Derek and the eval-platform owner before any Phase 4 inference runs. The structured-output JSON (`concept_matches`, `method_matches`, `phenomenon_matches`, `translation_matches`, `vocabulary_collisions`, `refusals_or_caveats`, `user_specific_response`) is the contract between the tool and the eval. Schedule a 30-minute sync in week 1.
+2. **Eval-platform staffing.** Phase 3 (linter, 3 days), Phase 6 (eval-set expansion, 4 weeks), Phase 7c (Streamlit reviewer app, 3 weeks) need an owner. Postdoc, grad student, external engineer for the app portion, or some split?
+3. **Skill-loading strategy in Phase 4.** Full-corpus always-on (simplest, ~75k tokens, fits Opus comfortably) vs. Claude-Skills-based selective loading (more efficient, requires a small dispatch layer). My recommendation: start with full-corpus always-on for the first 60 QAs; benchmark and switch to selective loading only if latency or cost demand it.
+4. **Funding gate.** Reviewer honoraria (~$5k) and API spend (~$3k) — confirmed against an existing grant, or does Phase 7 wait for additional support?
+5. **Publication venue.** AGU Advances vs. Reviews of Geophysics vs. Eos vs. *Scientific Data* descriptor for the eval dataset. Affects Phase 8 rigor target on the held-out re-evaluation.
+6. **Public Gradio demo timing.** Embed in gaia-hazlab.github.io showcase immediately upon Phase 4 completion, or hold until after the Phase 7 calibration round so external visitors see a verified-quality tool? My recommendation: hold for ~6–8 weeks until calibration is clean, then publish with a "v1, open for feedback" framing.
+7. **Reactivating the deferred RAG layer.** Not on the critical path. Revisit only if (a) Phase 7 feedback specifically calls for autonomous paper recommendation, (b) productization plans firm up, or (c) a research question explicitly needs retrieval-conditioned generation as a controlled variable.

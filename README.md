@@ -134,7 +134,7 @@ The skill files come in two flavors. Pick the right one for the right purpose.
 Short documents (~200-400 words) suitable for **system-prompt inclusion every turn**. They describe what the discipline does, name its core variables, and surface the most important cross-discipline hooks. They do **not** contain enough detail to ground a research-quality answer; they exist so the agent always has discipline awareness.
 
 ### Long-form cards (`skills/long_form/<discipline>/`)
-Detailed knowledge cards intended to live in a **RAG retrieval corpus**, chunked at the card level. Four card types:
+Detailed knowledge cards designed to be loaded as **Claude Skills** (either entirely on, or selectively via skill-dispatch). Chunked at the card level. Four card types:
 
 - **Concept cards** — one per major variable or governing equation. Definition, units, typical numerical ranges, cross-discipline equivalents, anchor citations.
 - **Method cards** — one per measurement technique, instrument, or dataset. What it measures, resolution, failure modes, cross-discipline reuse.
@@ -175,8 +175,9 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 | Near-surface geophysics — short summary | ✅ complete |
 | Agent playbook | ✅ vocab table covers all 9 disciplines; explicit Agriculture column added |
 | Co-retrieval index | ✅ all 9 disciplines; zero unresolved cross-references |
-| RAG retrieval layer | 🔲 not yet built |
-| Paper corpus | 🔲 not yet built |
+| Card linter (Phase 3 deliverable) | 🟡 small remaining; ~3 days |
+| Low-level translator tool (Phase 4) | 🔲 Derek owns; ~2–3 weeks; no RAG, skill-loaded context, structured CC/MC/PD/TC output, PDF/URL input |
+| RAG retrieval layer + paper corpus | ⏸ deferred to future option (not on critical path) |
 
 ## Roadmap
 
