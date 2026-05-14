@@ -17,7 +17,7 @@ Status as of this document:
 - Pipeline 🟡 (`additional_seed_qas.py` present; `seed_qa_dataset.py`, `generate_eval_dataset.py`, `build_review_spreadsheet.py` need re-creation as part of Phase 6)
 - Card linter ✅ (`pipeline/lint_cards.py`; 0 errors, 3 acceptable warnings)
 - **Low-level translator tool** 🔲 (Phase 4, Derek's work, ~2–3 weeks; schema spec at `docs/phase4_output_schema.md`)
-- Eval set v3 (300 QAs) 🔲 (Phase 6)
+- Eval set v3 🟡 21 / ~300 seed QAs (Phase 6 in progress; pipeline + docs in place)
 - Expert evaluation rounds 🔲 (Phase 7)
 - ~~RAG retrieval layer~~ ⏸ deferred to future option
 - ~~Paper corpus~~ ⏸ deferred to future option
@@ -211,7 +211,9 @@ This is a real architectural upgrade and worth tracking, but it is *not* what th
 
 **Dependency.** Phase 4 (the low-level translator tool — so the chatbot can generate the structured answers being scored). The structured output schema is the contract between Phase 4 and Phase 6 / 7.
 
-**Reuse.** `additional_seed_qas.py` and `seed_qa_dataset.py` (once recovered or rewritten) become the v3 generators. The structured-output format simplifies QA design: each QA produces an expected CC/MC/PD/TC match set plus an expected user-specific response section, making per-section scoring tractable.
+**Reuse.** `pipeline/seed_qa_dataset.py` (21 seed QAs as anchors), `pipeline/generate_eval_dataset.py` (LLM-assisted drafter, gap-prioritized auto mode), `pipeline/validate_eval_set.py` (schema + stratification checks), and `pipeline/build_review_spreadsheet.py` (JSON → reviewer xlsx) are all built. The structured-output format simplifies QA design: each QA produces an expected CC/MC/PD/TC match set plus an expected user-specific response section, making per-section scoring tractable.
+
+**Phase 6 kickoff status (May 2026)**: schema spec (`docs/eval_qa_schema.md`), design guidelines (`docs/eval_qa_design.md`), 21 seed QAs covering all 9 disciplines and all 5 query types, full Python pipeline (validate + build + draft), canonical `eval_dataset/eval_dataset_v3.json`, and reviewer `eval_dataset/gaia_translator_eval_review_v3.xlsx` (50 formulas, 0 errors). Remaining work: author ~280 more QAs in the same format (workflow: LLM-draft auto-prioritized to fill gaps → human edit → append to seed dataset → re-validate → re-build xlsx).
 
 **Adaptation for the structured output**. The 8-criterion rubric in `eval_platform/` applies per-section as well as overall:
 - Technical accuracy, citation discipline, vocabulary precision are scored on each card-category section.

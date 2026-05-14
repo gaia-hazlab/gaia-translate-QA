@@ -183,6 +183,22 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 
 See `docs/roadmap.md` for the prioritized plan. Phases 1–3 are complete (9-discipline corpus + card linter); the active phase is now Phase 4 (low-level translator tool, Derek). The output schema for Phase 4 is drafted in `docs/phase4_output_schema.md`.
 
+## Eval set (Phase 6)
+
+The eval set is the expert-graded benchmark for the Gaia translator chatbot. Phase 6 expands it from 60 QAs (v2) to ~300 (v3), each in the structured schema that maps directly to the chatbot's structured output (see `docs/eval_qa_schema.md`).
+
+```bash
+# Regenerate the canonical JSON and the reviewer xlsx from the seed dataset
+python pipeline/validate_eval_set.py    # validates + writes eval_dataset/eval_dataset_v3.json
+python pipeline/build_review_spreadsheet.py   # writes eval_dataset/gaia_translator_eval_review_v3.xlsx
+
+# Draft new candidate QAs (requires ANTHROPIC_API_KEY)
+python pipeline/generate_eval_dataset.py --auto --n 5
+python pipeline/generate_eval_dataset.py --discipline atmospheric_sciences --query-type paper-interpretation --difficulty 3 --n 3
+```
+
+Current state: **21 seed QAs in `pipeline/seed_qa_dataset.py`** (3 calibration + 18 draft); see `docs/eval_qa_design.md` for the QA-author guidelines.
+
 ## Linting the corpus
 
 The card corpus is validated by `pipeline/lint_cards.py`, which enforces section-presence, word-count caps, DOI coverage, and cross-reference resolution.
