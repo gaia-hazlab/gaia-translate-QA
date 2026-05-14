@@ -105,22 +105,26 @@ Status as of this document:
 
 ## Phase 5 — Paper corpus and inference loop (~3 weeks)
 
+**Owner**: Derek (student) is leading the chatbot inference-loop build as a separate workstream that runs in parallel with Phases 6–7 of the eval-side roadmap. Coordination with the eval platform happens through the shared data schema in `eval_platform/` (the chatbot logs retrieval sets and responses in the format the scoring app expects) and through periodic sync on what the cards/playbook need to surface for the agent.
+
 **Goal.** Wire the retrieval layer to Claude inference, so the chatbot can actually answer a query. Add a small corpus of anchor papers (PDFs / text) so the chatbot can quote primary sources beyond the cards.
 
 **Deliverables.**
 1. **Anchor paper corpus.** Pull the ~100 anchor papers already cited in the cards. Store as `corpus/papers/<doi-slug>.pdf` + extracted text + chunked embeddings. Respect publisher licenses — use open-access where available; for paywalled, store metadata + DOI and rely on the card summary plus a `read more` link.
-2. **Inference loop.** Python module (`gaia_translator/agent.py`) that takes a user query, runs disambiguation → retrieval → system-prompt assembly → Claude inference → response. Logs the retrieval set, the prompt, and the response for later review.
+2. **Inference loop.** Python module (`gaia_translator/agent.py`) that takes a user query, runs disambiguation → retrieval → system-prompt assembly → Claude inference → response. Logs the retrieval set, the prompt, and the response in JSON in the format consumed by the eval scoring app.
 3. **Refusal & citation discipline.** Implement the refusal patterns from `agent_playbook.md` as response-time guardrails (e.g., regex / Claude self-check that flags any citation not in the retrieved context).
 4. **Conversation memory.** Maintain disambiguation state and prior turn context across a multi-turn session; persist as JSON.
-5. **CLI and minimal web demo.** A `gaia` CLI for local use; a Streamlit or Gradio demo for sharing with the group.
+5. **CLI and minimal web demo.** A `gaia` CLI for local use; a **Gradio** chat demo for sharing externally (eventually embeddable in the gaia-hazlab.github.io showcase). Gradio (not Streamlit) for the public chat demo: `gr.ChatInterface` is best-in-class for streaming chat UIs and Hugging Face Spaces is the natural home. (Reviewer scoring app uses Streamlit — different role; see Phase 7c.)
 
 **Success criteria.** End-to-end demo on the existing 60 QAs returns plausible, cited answers with no fabricated DOIs.
 
-**Effort.** ~3 weeks.
+**Effort.** ~3 weeks for the inference loop and the demo; another 1–2 weeks for the paper corpus.
 
-**Dependency.** Phase 4.
+**Dependency.** Phase 4 (retrieval layer). The chatbot work can run in parallel with Phases 6–7 as long as the data schema is stable.
 
 **Hidden cost.** Cleaning paper PDFs and extracting clean text is always slower than expected. Budget 1 week for the paper corpus alone.
+
+**Coordination with the eval side.** The chatbot's output format (question, retrieved cards, model answer, retrieval log) maps directly to the scoring spreadsheet's columns. Lock this schema between Derek and the eval-platform owner before the chatbot generates the first batch of answers to score — schema drift here invalidates the eval set.
 
 ---
 
@@ -162,14 +166,19 @@ Status as of this document:
 
 **Stage 7b — Google Form + auto-populated Sheet (2 weeks).** Wrap each QA in a Google Form so reviewers don't have to navigate a spreadsheet. Auto-populate from the JSON eval set. Pros: zero infrastructure, easy auth via Google. Cons: limited UX, no in-line citation checking. Sufficient for 10–15 reviewers and a few-hundred-QA set.
 
-**Stage 7c — Streamlit / Gradio web app (3 weeks).** When the spreadsheet/form workflow hits friction, build a custom interface:
-- ORCID OAuth login (researcher identity + attribution).
-- Per-reviewer assignment based on discipline expertise (don't ask a seismologist to score an ecology answer).
-- In-line citation checking: clickable DOI links, "is the cited source actually in the retrieved context?" indicator.
-- Inter-rater reliability dashboard with running α.
-- Reviewer dashboards showing personal progress and aggregate flags.
-- Export to JSON for analysis.
-- Host on Streamlit Community Cloud (free) or UW research-computing (more durable).
+**Stage 7c — Streamlit reviewer scoring app (3 weeks).** When the spreadsheet/form workflow hits friction, build a custom interface in Streamlit. Streamlit (not Gradio) for this role: the scoring task is multi-page tabular workflow with sidebar progress, persistent per-user state, OIDC auth, and a PI-facing IRR dashboard — every one of which is Streamlit's strength. Gradio is the right tool for a separate public chatbot demo (see note in Phase 5), but it is not built for multi-page reviewer-labeling workflows.
+
+Feature checklist for v7c:
+- **Auth**: ORCID OAuth (researcher identity + attribution) via `streamlit-authenticator` or `st.experimental_user` with an OIDC provider; fallback to email allowlist for the first cohort.
+- **Per-reviewer assignment**: discipline-aware QA routing; reviewers see only their assigned set; no peer-visibility during independent scoring.
+- **In-line citation checking**: clickable DOI links; "is the cited source actually in the retrieved context?" indicator computed against the chatbot's retrieval log.
+- **Live IRR dashboard** (PI view): running Krippendorff's α per criterion, broken out by discipline pair; flag-for-discussion queue with comment threading.
+- **Reviewer dashboards**: personal progress, mean scoring time, completion percent, any rubric-required comments still missing.
+- **Persistence**: read/write to the same Google Sheets backend as Stage 7b via `st.connection("gsheets")`, OR migrate to SQLite/Postgres if scale demands. Migrating from Sheets→DB is a Phase 7d decision, not a 7c blocker.
+- **Export**: one-click JSON dump of the full eval dataset for downstream analysis (RLHF/DPO/Datasheets paper).
+- **Hosting**: Streamlit Community Cloud (free; supports private apps with GitHub auth); upgrade to UW research-computing if institutional data-residency rules require it.
+
+Code layout suggestion: a separate repo `gaia-eval-app` (or a `streamlit_app/` directory in `gaia-translate-QA`) imports the v1 data schema from `eval_platform/` so the rubric definitions, calibration QAs, and JSON schema stay single-sourced.
 
 **Stage 7d — Calibration + expansion rounds.** Two calibration rounds (20 QAs each) to align reviewers, then full evaluation. Pair every QA with ≥2 reviewers; ≥3 for cross-discipline.
 
@@ -204,12 +213,16 @@ Status as of this document:
 
 ### Funding and team
 
-The full roadmap is ~30 weeks of focused effort. Sustainable execution probably requires:
+The full roadmap is ~30 weeks of focused effort. Confirmed assignments and rough resourcing:
 
-- 1 postdoc full-time for 6 months (or 2 grad students half-time) on card authoring and pipeline.
-- The PI (Marine) at ~10% time for quality control, scientific direction, expert recruitment.
-- An external software engineer for ~6 weeks total for the retrieval layer and the eval platform.
-- Honoraria budget for 15–20 external reviewers.
+- **PI (Marine)** at ~10% time for scientific direction, card authoring quality control, expert recruitment, and meeting facilitation.
+- **Derek (student)** owns Phase 5: chatbot inference loop, paper corpus, Gradio public chat demo. Runs in parallel with Phases 6–7 once the v3 corpus and retrieval layer (Phase 4) are in place.
+- **Eval-platform owner** (TBD — postdoc, grad student, or part-time engineer hire): card authoring for the remaining 5 disciplines (Phase 2), retrieval layer (Phase 4), eval-set expansion (Phase 6), Streamlit reviewer app (Phase 7c), aggregation and IRR analysis.
+- **Domain-expert reviewers**: 15–25 across the 9 disciplines, recruited from UW colleagues, AGU networks, and the GAIA HazLab collaborator pool. Time commitment 5–8 hours each over six weeks.
+
+The remaining open staffing question is whether the eval-platform owner is one full-time person for 6 months, two grad students at half-time, or split across a postdoc plus a ~6-week external software-engineer engagement for the Streamlit app specifically.
+
+Honoraria budget for reviewers: 15–25 × $250 ≈ $4–6k. API spend for chatbot inference + eval generation: ~$2–5k. Total cash budget on top of personnel: ~$10k.
 
 This effort dovetails with the NSF IDSS proposal preparation: the Gaia translator is a candidate Category I or II IDSS deliverable, and the eval set is itself a national-scale data product. The `nsf-idss-proposal-preparer` skill can frame this directly.
 
@@ -234,12 +247,12 @@ Three publication outputs are likely:
 
 ---
 
-## Decision points before we start
+## Decision points
 
-1. **Phase 1 source.** Do hydrology v3 drafts exist somewhere, or do we author from the v2 legacy file (which also needs to be uploaded)?
-2. **Author capacity.** Will the user be the primary author, or will a postdoc / grad student lead? This determines parallel-stream feasibility for Phase 2.
-3. **Funding gate.** Are the external-engineer hours and reviewer honoraria already covered, or does the platform stage (Phase 7c) need to wait for additional support?
-4. **Publication venue.** AGU Advances vs. Reviews of Geophysics vs. Eos — affects Phase 8 framing and likely the level of rigor on the held-out re-evaluation.
-5. **Open question on word-count canon.** Phase 3 has to resolve this; pre-deciding the answer (looser limits to match seismology/geotech reality) saves a round of trips.
+Phases 1 and 2 are now scoped and underway; the remaining open decisions:
 
-Once these five are answered, Phase 1 can begin within a day.
+1. **Eval-platform staffing.** Phase 2 (cards for 5 remaining disciplines), Phase 4 (retrieval), Phase 6 (eval-set expansion), and Phase 7 (Streamlit reviewer app) need an owner. Postdoc, grad student, external engineer for the app portion, or some split?
+2. **Schema lock between Derek and the eval platform.** The chatbot's response-and-retrieval-log JSON must match the scoring spreadsheet's columns. Schedule a 30-minute sync between Derek and the eval-platform owner before Phase 5 work starts producing artifacts.
+3. **Funding gate.** Reviewer honoraria (~$5k) and API spend (~$3k) — confirmed against an existing grant, or does Phase 7 wait for additional support?
+4. **Publication venue.** AGU Advances vs. Reviews of Geophysics vs. Eos — affects Phase 8 framing and rigor target on the held-out re-evaluation. Possibly also a separate *Scientific Data* descriptor paper for the open eval dataset.
+5. **Public chatbot demo timing.** Phase 5 delivers a Gradio demo; do we embed it in the gaia-hazlab.github.io showcase immediately, or hold until the v3 corpus covers all 9 disciplines so a public-facing demo doesn't disappoint on out-of-corpus questions?

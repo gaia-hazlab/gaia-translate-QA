@@ -9,7 +9,7 @@
 # v3 scope: hydrology entries only (demo). Will be extended as other disciplines get v3 card restructuring.
 
 schema_version: v3
-discipline_coverage: [hydrology, seismology, geotechnical_engineering]
+discipline_coverage: [hydrology, seismology, geotechnical_engineering, geomorphology]
 
 cards:
 
@@ -1029,4 +1029,383 @@ cards:
       - "Vs30 hides information: two sites with identical Vs30 but different impedance below 30 m amplify differently."
       - "Same physical Vs across regimes; depth/resolution differences are the bridge content."
 
-# End of v3 hydrology + seismology + geotechnical_engineering entries. Other disciplines to be added as they are v3-restructured.
+  # ===========================================================================
+  # GEOMORPHOLOGY CONCEPT CARDS
+  # ===========================================================================
+
+  CC-geomorph-D:
+    title: "Hillslope sediment-transport diffusivity κ"
+    always_retrieve_with:
+      - CC-hydro-D
+      - CC-geotech-cv
+      - CC-geomorph-erosion-rate
+      - TC-01
+      - TC-13
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-D, TC-01]
+      geotech: [CC-geotech-cv]
+      atmospheric: []
+    caveats:
+      - "Linear formulation fails where slopes approach S_c (≈ 0.5-1.2); nonlinear Roering 1999 form required for most PNW slopes."
+      - "Symbol collision risk: κ (hillslope transport) vs. K (bedrock incision); state explicitly."
+
+  CC-geomorph-streampower:
+    title: "Stream power and bedrock incision"
+    always_retrieve_with:
+      - CC-hydro-Q
+      - CC-geomorph-tau
+      - CC-geomorph-Qs
+      - CC-geomorph-ksn
+      - PD-river-floods
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, MC-hydro-NWIS]
+      seismology: [CC-seismo-noise, TC-14]
+      ecology: [CC-eco-IHA]
+    caveats:
+      - "Total Ω vs. unit ω: factor of W differ; report which."
+      - "m/n ratio is regression-derived and sensitive to channel-width scaling assumption."
+
+  CC-geomorph-tau:
+    title: "Bed shear stress and threshold of motion"
+    always_retrieve_with:
+      - CC-geomorph-streampower
+      - CC-geomorph-Qs
+      - TC-14
+    cross_discipline_anchors:
+      geotech: [CC-geotech-MohrCoulomb]      # threshold framework analog
+      hydrology: [CC-hydro-Q]
+      ecology: []
+    caveats:
+      - "Reach-averaged τ vs. grain-scale τ can differ by factor 2-5 in poorly-sorted gravel."
+      - "Critical Shields τ_c* is empirical and bed-sorting-dependent (Wilcock-Crowe)."
+
+  CC-geomorph-Qs:
+    title: "Sediment flux and sediment continuity"
+    always_retrieve_with:
+      - CC-geomorph-streampower
+      - CC-geomorph-tau
+      - MC-geomorph-sediment-monitoring
+      - MC-hydro-NWIS
+      - TC-13
+      - TC-14
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, MC-hydro-NWIS]
+      seismology: [CC-seismo-noise, TC-14]
+      geotech: [PD-coseismic-landslide]
+      ecology: [CC-eco-IHA]
+    caveats:
+      - "VOCABULARY COLLISION: Q_s (sediment) vs. Q (water discharge); same letter, different physical quantity."
+      - "Bedload rating curves have factor-2-10 uncertainty at extreme flows; one storm can dominate decades."
+
+  CC-geomorph-erosion-rate:
+    title: "Long-term erosion / denudation rate E"
+    always_retrieve_with:
+      - CC-geomorph-D
+      - MC-geomorph-cosmogenic
+      - PD-landscape-evolution
+      - TC-13
+    cross_discipline_anchors:
+      seismology: [CC-seismo-source, PD-megathrust]
+      hydrology: [CC-geomorph-Qs]
+      climate: []
+    caveats:
+      - "Integration timescale (cosmogenic 10³-10⁵ yr vs. modern Q_s) can differ; non-steady landscapes routinely show divergence."
+      - "Cosmogenic scaling schemes (Lal-Stone vs. Lifton-Sato) disagree by 5-15%."
+
+  CC-geomorph-ksn:
+    title: "Channel steepness index and chi analysis"
+    always_retrieve_with:
+      - CC-geomorph-streampower
+      - CC-geomorph-erosion-rate
+      - MC-geomorph-DEM-analysis
+      - PD-fault-scarp
+    cross_discipline_anchors:
+      seismology: [PD-fault-scarp, PD-megathrust]
+      hydrology: []                          # drainage-area surrogate for Q
+      climate: []
+    caveats:
+      - "Reference concavity θ_ref typically 0.45; alternative values must be stated."
+      - "Chi-elevation plots more robust than slope-area regression on noisy DEMs."
+
+  CC-geomorph-flood-frequency:
+    title: "Flood-frequency analysis"
+    always_retrieve_with:
+      - CC-hydro-Q
+      - MC-hydro-NWIS
+      - TC-04
+      - PD-river-floods
+      - PD-dam-levee-safety
+    cross_discipline_anchors:
+      seismology: [CC-seismo-GR, TC-04]     # shared statistics, distinct mechanism
+      geotech: [PD-dam-levee-safety]
+      atmospheric: []                        # AR-driven extremes
+    caveats:
+      - "Stationarity assumption increasingly violated under climate change (Milly 2008)."
+      - "USGS Bulletin 17C is the U.S. operational standard; non-US uses GEV typically."
+
+  CC-geomorph-landslide-size:
+    title: "Landslide size-frequency distribution"
+    always_retrieve_with:
+      - CC-seismo-GR
+      - TC-04
+      - PD-AR-landslide
+      - PD-coseismic-landslide
+      - PD-debris-flow
+    cross_discipline_anchors:
+      seismology: [CC-seismo-GR, TC-04]
+      hydrology: [PD-AR-landslide]
+      geotech: [CC-geotech-FS]
+    caveats:
+      - "Inventory completeness at small sizes is critical; apparent shallow tails may reflect detection cutoff."
+      - "Cumulative N(≥A) vs. incremental N(A) exponents differ by 1; state which."
+
+  # ===========================================================================
+  # GEOMORPHOLOGY METHOD CARDS
+  # ===========================================================================
+
+  MC-geomorph-lidar:
+    title: "Airborne / terrestrial lidar and SfM photogrammetry"
+    always_retrieve_with:
+      - MC-geomorph-DEM-analysis
+      - MC-geomorph-InSAR
+      - CC-geomorph-ksn
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      geotech: [CC-geotech-FS]
+      seismology: [PD-fault-scarp]
+      ecology: []
+    caveats:
+      - "DoD uncertainty must be quantified (Brasington-Wheaton framework); volumes without uncertainty unreliable."
+      - "Dense canopy obscures bare-earth; SfM needs GPS ground control."
+
+  MC-geomorph-cosmogenic:
+    title: "Cosmogenic isotopes for erosion and exposure dating"
+    always_retrieve_with:
+      - CC-geomorph-erosion-rate
+      - MC-hydro-isotopes
+      - PD-landscape-evolution
+      - PD-fault-scarp
+    cross_discipline_anchors:
+      seismology: [PD-fault-scarp, PD-megathrust]
+      hydrology: [MC-hydro-isotopes]
+      climate: []
+    caveats:
+      - "Scaling-scheme uncertainty 5-15%; production-rate calibration site matters."
+      - "Inheritance and non-steady-state assumptions can bias rates."
+
+  MC-geomorph-DEM-analysis:
+    title: "DEM analysis software (TopoToolbox, RichDEM, FastScape)"
+    always_retrieve_with:
+      - MC-geomorph-lidar
+      - MC-geomorph-landlab
+      - CC-geomorph-ksn
+      - CC-geomorph-D
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling]
+      geotech: [CC-geotech-FS]
+      ecology: []
+    caveats:
+      - "DEM artifacts (stripes, pits) propagate into slope/curvature; pre-processing critical."
+      - "Flow-routing algorithm choice (D8/D∞/MFD) matters in low-relief settings."
+
+  MC-geomorph-landlab:
+    title: "Landscape evolution modeling (Landlab, FastScape, CAESAR-Lisflood)"
+    always_retrieve_with:
+      - MC-geomorph-DEM-analysis
+      - MC-hydro-modeling
+      - CC-geomorph-streampower
+      - CC-geomorph-D
+      - PD-landscape-evolution
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-modeling, TC-05]
+      geotech: [PD-dam-levee-safety]
+      climate: []
+    caveats:
+      - "Parameters calibrated, not measured; equifinality is normal."
+      - "Outputs are exploratory hypotheses, not predictions."
+
+  MC-geomorph-debris-flow-modeling:
+    title: "Debris-flow runout models (D-Claw, RAMMS, FLO-2D)"
+    always_retrieve_with:
+      - CC-geotech-MohrCoulomb
+      - CC-geotech-PorePressure
+      - PD-debris-flow
+      - PD-AR-landslide
+      - PD-volcanic-seismicity
+    cross_discipline_anchors:
+      hydrology: [PD-AR-landslide]
+      geotech: [CC-geotech-MohrCoulomb, CC-geotech-PorePressure]
+      seismology: [PD-volcanic-seismicity]
+    caveats:
+      - "Rheology parameters site-calibrated; don't transfer reliably across watersheds."
+      - "Source-volume specification dominates output."
+
+  MC-geomorph-sediment-monitoring:
+    title: "Fluvial sediment monitoring"
+    always_retrieve_with:
+      - CC-geomorph-Qs
+      - CC-geomorph-tau
+      - MC-hydro-NWIS
+      - CC-seismo-noise
+      - TC-14
+    cross_discipline_anchors:
+      hydrology: [MC-hydro-NWIS, CC-hydro-Q]
+      seismology: [CC-seismo-noise, MC-seismo-broadband, TC-14]
+      ecology: []
+    caveats:
+      - "Suspended-sediment rating curves have factor-2-10 uncertainty at extremes."
+      - "Bedload samplers capture small fraction of bed; storm events dominate."
+
+  MC-geomorph-InSAR:
+    title: "InSAR and SAR for surface deformation"
+    always_retrieve_with:
+      - MC-geomorph-lidar
+      - PD-subsidence-consolidation
+      - PD-aquifer-depletion
+      - PD-fault-scarp
+      - PD-megathrust
+    cross_discipline_anchors:
+      seismology: [CC-seismo-source, PD-megathrust]
+      geotech: [PD-subsidence-consolidation]
+      hydrology: [PD-aquifer-depletion, MC-hydro-GRACE]
+    caveats:
+      - "Vegetated terrain destroys coherence; L-band penetrates better than C-band."
+      - "Line-of-sight only; ascending+descending required for 3D decomposition."
+
+  # ===========================================================================
+  # GEOMORPHOLOGY PHENOMENON DOSSIERS
+  # ===========================================================================
+
+  PD-debris-flow:
+    title: "Rainfall-, runoff-, and volcano-driven debris flows"
+    always_retrieve_with:
+      - CC-geomorph-Qs
+      - CC-geotech-MohrCoulomb
+      - CC-geotech-PorePressure
+      - MC-geomorph-debris-flow-modeling
+      - PD-AR-landslide
+      - PD-post-fire-erosion
+      - PD-volcanic-seismicity
+    cross_discipline_anchors:
+      hydrology: [PD-AR-landslide, MC-hydro-NWIS, MC-hydro-SMAP]
+      geotech: [CC-geotech-MohrCoulomb, CC-geotech-PorePressure]
+      seismology: [PD-volcanic-seismicity, CC-seismo-noise]
+      ecology: []
+    caveats:
+      - "Mt. Rainier Osceola Mudflow (~5,600 yr BP) is the canonical PNW reference."
+      - "D-Claw is open-source USGS; RAMMS and FLO-2D are commercial/regulatory."
+
+  PD-river-floods:
+    title: "AR-driven river floods"
+    always_retrieve_with:
+      - CC-hydro-Q
+      - CC-geomorph-streampower
+      - CC-geomorph-Qs
+      - CC-geomorph-flood-frequency
+      - MC-hydro-NWIS
+      - PD-AR-landslide
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, MC-hydro-NWIS]
+      atmospheric: []                        # AR products
+      seismology: [CC-seismo-noise, TC-14]
+      geotech: [PD-dam-levee-safety]
+      ecology: [CC-eco-IHA]
+    caveats:
+      - "Stationarity of flood-frequency curves increasingly questioned under climate change."
+      - "Rating curves at extreme stages have factor-2+ uncertainty."
+
+  PD-landscape-evolution:
+    title: "Long-timescale landscape response to climate and tectonics"
+    always_retrieve_with:
+      - CC-geomorph-erosion-rate
+      - CC-geomorph-streampower
+      - CC-geomorph-ksn
+      - MC-geomorph-cosmogenic
+      - MC-geomorph-landlab
+      - PD-fault-scarp
+    cross_discipline_anchors:
+      seismology: [PD-megathrust, PD-fault-scarp]
+      hydrology: [CC-geomorph-Qs]
+      climate: []
+    caveats:
+      - "Steady-state assumption usually invalid post-glacially; cosmogenic vs. modern Q_s diverges."
+      - "Climate-tectonic causality debated (Whipple 2009 vs. Molnar & England 1990 frames)."
+
+  PD-fault-scarp:
+    title: "Fault-scarp morphology and coseismic surface deformation"
+    always_retrieve_with:
+      - CC-geomorph-D
+      - CC-seismo-source
+      - CC-seismo-magnitude
+      - MC-geomorph-lidar
+      - MC-geomorph-cosmogenic
+      - MC-geomorph-InSAR
+      - PD-megathrust
+    cross_discipline_anchors:
+      seismology: [PD-megathrust, CC-seismo-source]
+      geomorph: [CC-geomorph-D, CC-geomorph-erosion-rate]
+    caveats:
+      - "Cascadia paleoseismic record combines onshore stratigraphy + offshore turbidites (Goldfinger 2012)."
+      - "Diffusion-modeling-based scarp dating has order-of-magnitude uncertainty without independent constraints."
+
+  PD-post-fire-erosion:
+    title: "Post-wildfire hillslope and channel response"
+    always_retrieve_with:
+      - CC-geomorph-Qs
+      - CC-geomorph-D
+      - CC-geotech-FS
+      - CC-hydro-Q
+      - PD-debris-flow
+      - PD-AR-landslide
+      - PD-coseismic-landslide
+    cross_discipline_anchors:
+      hydrology: [CC-hydro-Q, MC-hydro-SMAP, MC-hydro-NWIS]
+      geotech: [CC-geotech-FS, CC-geotech-MohrCoulomb]
+      ecology: []                            # root cohesion + recovery
+      atmospheric: [PD-AR-landslide]
+    caveats:
+      - "Cannon et al. (2008) thresholds derived in CA/CO; PNW analog work incipient."
+      - "Sediment yield can be 10-1000× pre-fire; recovery paced by vegetation 3-10 yr."
+
+  # ===========================================================================
+  # GEOMORPHOLOGY TRANSLATION CARDS
+  # ===========================================================================
+
+  TC-13:
+    title: "Sediment continuity ↔ watershed water balance ↔ critical-zone carbon"
+    always_retrieve_with:
+      - CC-geomorph-Qs
+      - CC-geomorph-erosion-rate
+      - CC-hydro-Q
+      - CC-hydro-ET
+      - MC-geomorph-landlab
+      - TC-06
+      - PD-landscape-evolution
+    cross_discipline_anchors:
+      hydrology: [TC-06, CC-hydro-Q, CC-hydro-ET]
+      ecology: [CC-eco-GPP]
+      agriculture: [PD-aquifer-depletion]
+    caveats:
+      - "Conservation framework portable; closure error is the diagnostic, not absolute fluxes."
+      - "Cross-budget coupling at the leaf (ET-GPP) is a coupling, not a shared equation."
+
+  TC-14:
+    title: "Bedload transport ↔ high-frequency seismic noise"
+    always_retrieve_with:
+      - CC-geomorph-Qs
+      - CC-geomorph-streampower
+      - CC-geomorph-tau
+      - CC-seismo-noise
+      - MC-seismo-broadband
+      - MC-geomorph-sediment-monitoring
+      - PD-river-floods
+      - PD-debris-flow
+    cross_discipline_anchors:
+      seismology: [CC-seismo-noise, MC-seismo-broadband]
+      hydrology: [MC-hydro-NWIS, CC-hydro-Q]
+      geomorph: [CC-geomorph-Qs]
+    caveats:
+      - "Inversion most reliable with known grain size and station ≤ 100 m from channel."
+      - "Cultural noise in urban settings; signal partitioning across rain/wind/debris is the current frontier."
+
+# End of v3 hydrology + seismology + geotechnical_engineering + geomorphology entries. Other disciplines to be added as they are v3-restructured.

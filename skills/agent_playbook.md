@@ -119,25 +119,28 @@ Critical caveats:
 
 Polysemous terms across disciplines. If a user query contains any of these, the agent should disambiguate before responding.
 
-| Term | Hydrology | Geotechnical | Seismology | Ecology | Atmospheric |
-|---|---|---|---|---|---|
-| **Stress** | (rare) | Total σ or effective σ' = σ − p; Mohr-Coulomb τ_f = c' + σ' tan φ' | On a fault: σ_n, τ. Stress drop Δσ. | Physiological / drought stress | Sometimes "thermal stress" |
-| **Permeability** | k [m²]; flow resistance | k governs c_v consolidation rate | k for poroelasticity | (rare) | Magnetic permeability (different physics; collision) |
-| **Diffusivity** | hydraulic, T/S | c_v = k/(γ_w m_v); same diffusion equation as hydrology | seismic-attenuation Q (different) | (rare) | eddy diffusivity (turbulent parameterization, different) |
-| **Noise** | (rare) | (rare) | Ambient seismic field; meaningful signal | Ambient acoustic field | Aerosol / instrument noise |
-| **Storage** | aquifer storage S | (rare; m_v is mechanical compressibility, distinct) | (rare) | Carbon storage in biomass/soil | Energy storage in ocean / land |
-| **Source** | Recharge source for groundwater | (rare) | Earthquake source mechanism | Source water for transpiration | Emission source |
-| **Conductivity** | K hydraulic | (rare) | σ electrical (in MT) | (rare) | Thermal conductivity |
-| **Anisotropy** | K_h vs K_v | G/Gmax anisotropy from cyclic fabric (rare; usually isotropic assumption) | Seismic Vs / Vp anisotropy | Spatial heterogeneity | (rare) |
-| **Q** | Streamflow [m³/s] | (rare) | Attenuation [dimensionless] — completely unrelated to streamflow | (rare) | (rare) |
-| **Magnitude** | (rare) | (rare) | Moment magnitude Mw | (rare) | Storm intensity (different scale conventions) |
-| **Attenuation** | Tracer attenuation in transport | Damping ratio ξ(γ); near-surface contributes to apparent seismic Q | Seismic Q; intrinsic vs scattering | Light attenuation in canopy | Aerosol / radiative attenuation |
-| **Consolidation** | (rare) | Time-dependent volumetric strain under load; Terzaghi 1D | (rare) | "Population consolidation" — entirely different (social-ecology context) | (rare) |
-| **Settlement** | (rare) | Vertical displacement under load (immediate, primary consolidation, secondary creep) | (rare) | (rare) | (rare); note "settlement" can mean human settlement in social-science context |
-| **FS / factor of safety** | (rare) | τ_f / τ_d for slope stability | (rare) | (rare) | (rare) |
-| **CSR** | (rare) | Cyclic stress ratio for liquefaction triggering — NOT corporate social responsibility | (rare) | (rare) | (rare) |
-| **Damping** | (rare) | Hysteretic damping ratio ξ in soils (G/Gmax framework) | Anelastic attenuation / Q | (rare) | Radiative damping (different) |
-| **Vs / Vs30** | (rare) | Site-classification Vs30 in design codes; same physical Vs as seismology, sampled by borehole in upper 30 m | Shear-wave velocity Vs = √(μ/ρ); same physical quantity at all depths | (rare) | (rare) |
+| Term | Hydrology | Geotechnical | Seismology | Geomorphology | Ecology | Atmospheric |
+|---|---|---|---|---|---|---|
+| **Stress** | (rare) | Total σ or effective σ' = σ − p; Mohr-Coulomb τ_f = c' + σ' tan φ' | On a fault: σ_n, τ. Stress drop Δσ. | Bed shear stress τ for sediment entrainment (Shields); also lithostatic stress driving long-term landscape evolution | Physiological / drought stress | Sometimes "thermal stress" |
+| **Permeability** | k [m²]; flow resistance | k governs c_v consolidation rate | k for poroelasticity | (rare; appears in chemical-weathering rates) | (rare) | Magnetic permeability (different physics; collision) |
+| **Diffusivity** | hydraulic, T/S | c_v = k/(γ_w m_v); same diffusion equation as hydrology | seismic-attenuation Q (different) | Hillslope sediment diffusivity κ [m²/yr]; same diffusion equation, ~10¹⁰× slower | (rare) | eddy diffusivity (turbulent parameterization, different) |
+| **Noise** | (rare) | (rare) | Ambient seismic field; meaningful signal | High-frequency bedload-driven seismic signal (`TC-14`); meaningful signal | Ambient acoustic field | Aerosol / instrument noise |
+| **Storage** | aquifer storage S | (rare; m_v is mechanical compressibility, distinct) | (rare) | Sediment storage in floodplain / valley-fill reservoirs (different) | Carbon storage in biomass/soil | Energy storage in ocean / land |
+| **Source** | Recharge source for groundwater | (rare) | Earthquake source mechanism | Sediment source area / catchment provenance | Source water for transpiration | Emission source |
+| **Conductivity** | K hydraulic | (rare) | σ electrical (in MT) | (rare) | (rare) | Thermal conductivity |
+| **Anisotropy** | K_h vs K_v | G/Gmax anisotropy from cyclic fabric (rare; usually isotropic assumption) | Seismic Vs / Vp anisotropy | Bedrock-fabric-controlled erosion patterns | Spatial heterogeneity | (rare) |
+| **Q** | Streamflow [m³/s] | (rare) | Attenuation [dimensionless] — completely unrelated to streamflow | Q_s sediment flux [kg/s, m³/yr] — DIFFERENT physical quantity, same letter | (rare) | (rare) |
+| **Magnitude** | (rare) | (rare) | Moment magnitude Mw | Loosely used for "landslide magnitude" or "flood magnitude"; not a unique scale | (rare) | Storm intensity (different scale conventions) |
+| **Attenuation** | Tracer attenuation in transport | Damping ratio ξ(γ); near-surface contributes to apparent seismic Q | Seismic Q; intrinsic vs scattering | (rare) | Light attenuation in canopy | Aerosol / radiative attenuation |
+| **Consolidation** | (rare) | Time-dependent volumetric strain under load; Terzaghi 1D | (rare) | (rare) | "Population consolidation" — entirely different (social-ecology context) | (rare) |
+| **Settlement** | (rare) | Vertical displacement under load (immediate, primary consolidation, secondary creep) | (rare) | (rare) | (rare) | (rare); note "settlement" can mean human settlement in social-science context |
+| **FS / factor of safety** | (rare) | τ_f / τ_d for slope stability (engineered slope) | (rare) | Same equation on natural hillslopes (Iverson 2000; `TC-11`) | (rare) | (rare) |
+| **CSR** | (rare) | Cyclic stress ratio for liquefaction triggering — NOT corporate social responsibility | (rare) | (rare) | (rare) | (rare) |
+| **Damping** | (rare) | Hysteretic damping ratio ξ in soils (G/Gmax framework) | Anelastic attenuation / Q | (rare) | (rare) | Radiative damping (different) |
+| **Vs / Vs30** | (rare) | Site-classification Vs30 in design codes; same physical Vs as seismology, sampled by borehole in upper 30 m | Shear-wave velocity Vs = √(μ/ρ); same physical quantity at all depths | (rare) | (rare) | (rare) |
+| **Scarp** | (rare) | (rare) | Coseismic rupture-surface offset (slip event) | Long-term fault-scarp morphology, integrating multiple events; diffusion-degraded form (`PD-fault-scarp`) | (rare) | (rare) |
+| **Knickpoint** | (rare) | (rare) | (rare) | Convex break in channel long profile; tectonic, lithologic, or autogenic origin | (rare) | (rare) |
+| **Concavity** | (rare) | (rare) | (rare) | Channel-profile concavity exponent θ in slope-area; m/n in stream-power model | (rare) | (rare) |
 
 Disambiguation move: if a query is ambiguous, ask one short clarifying question before answering. Example: "When you say 'permeability', do you mean hydraulic permeability k [m²] or magnetic permeability μ?"
 

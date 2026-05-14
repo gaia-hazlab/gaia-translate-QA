@@ -49,8 +49,13 @@ gaia-translator/
 │       │   ├── phenomenon_dossiers.md
 │       │   └── translation_cards.md
 │       │
+│       ├── geomorphology/           ← ✅ v3 done
+│       │   ├── concept_cards.md
+│       │   ├── method_cards.md
+│       │   ├── phenomenon_dossiers.md
+│       │   └── translation_cards.md
+│       │
 │       └── v2_legacy/               ← awaiting v3 card-pattern restructuring
-│           ├── geomorphology.md         (not yet uploaded; awaiting source)
 │           ├── atmospheric_sciences.md
 │           ├── ecology.md
 │           ├── agricultural_sciences.md
@@ -134,10 +139,12 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 | Seismology — short summary | ✅ complete |
 | Geotechnical engineering — long-form card pattern | ✅ **v3 complete** (7 concept / 7 method / 4 phenomenon / 3 translation cards including TC-10, TC-11, TC-12) |
 | Geotechnical engineering — short summary | ✅ complete |
-| Other 5 disciplines (geomorphology, atmospheric sciences, ecology, agricultural sciences, near-surface geophysics) — long-form card pattern | 🟡 v2 legacy; awaiting v3 restructuring |
-| Other 5 disciplines — short summaries | 🟡 not yet written |
-| Agent playbook | 🟢 vocab table covers hydro + seismo + geotech; needs extension as remaining disciplines land |
-| Co-retrieval index | 🟢 hydrology + seismology + geotechnical_engineering entries; remaining disciplines to follow |
+| Geomorphology — long-form card pattern | ✅ **v3 complete** (8 concept / 7 method / 5 phenomenon / 2 translation cards including TC-13, TC-14) |
+| Geomorphology — short summary | ✅ complete |
+| Other 4 disciplines (atmospheric sciences, ecology, agricultural sciences, near-surface geophysics) — long-form card pattern | 🟡 v2 legacy; awaiting v3 restructuring |
+| Other 4 disciplines — short summaries | 🟡 not yet written |
+| Agent playbook | 🟢 vocab table covers hydro + seismo + geotech + geomorph; needs extension as remaining disciplines land |
+| Co-retrieval index | 🟢 hydrology + seismology + geotechnical_engineering + geomorphology entries; remaining 4 disciplines to follow |
 | RAG retrieval layer | 🔲 not yet built |
 | Paper corpus | 🔲 not yet built |
 
