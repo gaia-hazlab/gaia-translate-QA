@@ -1,0 +1,52 @@
+# Strategic / private docs — anywhere in the tree, never commit
+STRATEGY.md
+**/STRATEGY.md
+*-private.md
+private/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Office app lock files
+~$*
+.~lock.*#
+*.tmp
+
+# Node (for any future tooling)
+node_modules/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Environment / secrets — never commit
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Pipeline outputs and large generated artifacts
+eval_dataset/eval_dataset_llm.json
+eval_dataset/*_draft_*.json
+
+# Local scratch
+scratch/
+tmp/

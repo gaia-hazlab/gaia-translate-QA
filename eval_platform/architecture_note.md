@@ -72,29 +72,9 @@ v1 (Sheets + Form, this build) is enough to produce a defensible Phase-7 deliver
 3. **Release the aggregated dataset** (scores + comments + retrieval context + gold references), reviewer-anonymized at the row level but with reviewer pool documented in aggregate (N=18, disciplines covered, mean experience). Per the consent form, reviewers opt in to identity-attached or aggregated-only release.
 4. **Document the methodology** in a methods paper. Reasonable venues: a *Scientific Data* descriptor paper (focused on the dataset); an *EMNLP / NAACL / NeurIPS Datasets & Benchmarks* paper (focused on the methodology and the model evaluation); a *Reviews of Geophysics* piece (focused on the cross-discipline science).
 
-## Toward a productized tool
+## Path beyond v1
 
-If the platform is to support a startup or an open-access tool offered to other research groups:
-
-**Phase A** (v1, this build): manual Sheets + Form. Used for the Gaia translator exercise. Establishes the workflow and the data model.
-
-**Phase B**: Streamlit / Gradio web app with ORCID OAuth. Reviewers log in, see only their assigned QAs, score in a clean UI with citation-checking helpers. PI sees aggregate dashboards, IRR live, low-score-→-skill-revision rankings. Host on UW research-computing or Streamlit Community Cloud.
-
-**Phase C**: a multi-tenant SaaS offering. Each research group hosts their own evaluation exercises against the shared rubric/data-model infrastructure. Pricing model TBD (free for academic non-commercial, fee-based for industry use; OA-tool default with optional support contracts). Open-core if appropriate.
-
-**Phase D**: integration with model-development pipelines. The output of the eval is not just a benchmark; it is a labeled dataset suitable for RLHF, DPO, or supervised fine-tuning. Coupling the eval pipeline to a training pipeline is the path toward the LLM/MoE work mentioned for collaboration with Noah Smith — but the eval *itself* is publishable and useful even without the training-loop coupling.
-
-## Connection to the LLM/MoE direction
-
-The eval set produced here is a high-quality, expert-graded, multi-criterion-scored dataset of LLM outputs in a structurally complex domain (cross-discipline translation with citation discipline). That is exactly the kind of dataset that:
-
-- supports RLHF / DPO / process-reward-model work on agent-style LLMs;
-- supports MoE expert-routing studies (which expert / skill file should fire for which query type);
-- supports retrieval-augmented evaluation work — the dataset includes the retrieved context, so studies of retrieval-conditioned generation are natural.
-
-A reasonable framing for the longer-term paper: "Cross-domain expert evaluation of agent LLMs reveals retrieval-grounded failure modes that supervised fine-tuning alone cannot fix." The eval platform is the dataset-generation machinery; the paper is the analysis.
-
-**Important boundary**: the *v1 eval and its results* are publishable on their own without any RLHF/training work, as a benchmark + methodology + science paper. The training-loop coupling is a strictly downstream optional extension. Do not block the benchmark release on training-loop progress.
+The v1 platform (manual Sheets + Form) is intentionally lightweight. The next milestone is a web app — Streamlit or Gradio with ORCID OAuth — that gives reviewers a clean per-QA scoring UI and the PI a live IRR / progress dashboard. This is Phase 7c in `docs/roadmap.md`. Beyond that, any productization, infrastructure-hosting, or integration with model-training pipelines is out of scope for the public design described in this document.
 
 ## Things we are deliberately *not* doing in v1
 

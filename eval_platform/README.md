@@ -86,4 +86,4 @@ The data model — `{question, agent_output, retrieved_context, gold_reference?,
 - Keep the calibration-round-first workflow.
 - The aggregator and the master tracker code generalize without change.
 
-See `architecture_note.md` for the longer version, including notes on how this fits into the possible LLM/MoE collaboration with Noah Smith and on the path to a citable benchmark.
+See `architecture_note.md` for the longer version, including the generic data model and the path to a citable benchmark.
