@@ -150,6 +150,10 @@ Status as of this document:
 
 ## Phase 7 — Expert evaluation platform (~6 weeks staged)
 
+**Note**: the v1 platform (Sheets + Form) is now built under `eval_platform/`. The deliverables described below are the v1 → v3 evolution from that starting point.
+
+
+
 **Goal.** Engage 15–25 domain experts across the 9 disciplines to score chatbot answers against the rubric, with inter-rater reliability tracking, attribution, and a low-friction interface.
 
 **Why staged.** Start with the lowest-effort interface that gets reviewers reviewing; escalate only if the data demands it. Each stage is a real release that we can stop at if it's sufficient.

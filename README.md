@@ -145,6 +145,10 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 
 See `docs/roadmap.md` for the prioritized plan from here to a full-blown eval set with expert engagement. Phase 1 (unblocking hydrology) is the critical path; phases 2–8 cover the remaining discipline corpora, the RAG retrieval layer, the eval-set expansion, the expert review platform, and public release.
 
+## Evaluation platform
+
+See `eval_platform/` for the v1 expert-evaluation platform (Sheets + Form-based; generalizable to coding-agent evals and future LLM/MoE work). Contents include the kickoff meeting agenda, the reviewer instructions doc, the per-reviewer scoring spreadsheet template, the signup-form question set, and three calibration QAs. `eval_platform/README.md` is the entry point.
+
 ## How to contribute
 
 See `CONTRIBUTING.md`. The short version: pick a discipline, follow the card format spec, file a PR with new cards or revisions. Each card should be ≤200 words, self-contained, and cite at least one anchor paper with DOI.
