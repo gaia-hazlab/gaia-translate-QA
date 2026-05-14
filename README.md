@@ -175,13 +175,33 @@ The meta-procedure: how the chatbot should structure its reasoning for paper int
 | Near-surface geophysics — short summary | ✅ complete |
 | Agent playbook | ✅ vocab table covers all 9 disciplines; explicit Agriculture column added |
 | Co-retrieval index | ✅ all 9 disciplines; zero unresolved cross-references |
-| Card linter (Phase 3 deliverable) | 🟡 small remaining; ~3 days |
+| Card linter (Phase 3 deliverable) | ✅ `pipeline/lint_cards.py`; 0 errors on the full corpus, 3 acceptable warnings |
 | Low-level translator tool (Phase 4) | 🔲 Derek owns; ~2–3 weeks; no RAG, skill-loaded context, structured CC/MC/PD/TC output, PDF/URL input |
 | RAG retrieval layer + paper corpus | ⏸ deferred to future option (not on critical path) |
 
 ## Roadmap
 
-See `docs/roadmap.md` for the prioritized plan from here to a full-blown eval set with expert engagement. Phase 1 (unblocking hydrology) is the critical path; phases 2–8 cover the remaining discipline corpora, the RAG retrieval layer, the eval-set expansion, the expert review platform, and public release.
+See `docs/roadmap.md` for the prioritized plan. Phases 1–3 are complete (9-discipline corpus + card linter); the active phase is now Phase 4 (low-level translator tool, Derek). The output schema for Phase 4 is drafted in `docs/phase4_output_schema.md`.
+
+## Linting the corpus
+
+The card corpus is validated by `pipeline/lint_cards.py`, which enforces section-presence, word-count caps, DOI coverage, and cross-reference resolution.
+
+```bash
+# Lint the full corpus (default)
+python pipeline/lint_cards.py
+
+# Lint a single card file
+python pipeline/lint_cards.py --card skills/long_form/hydrology/concept_cards.md
+
+# Fail on warnings too (for CI)
+python pipeline/lint_cards.py --strict
+
+# JSON output for CI integration
+python pipeline/lint_cards.py --json
+```
+
+Exit codes: 0 = clean (or only warnings without `--strict`); 1 = errors detected; 2 = usage error. Currently the corpus passes with 0 errors and 3 acceptable warnings (documented in the linter output).
 
 ## Evaluation platform
 

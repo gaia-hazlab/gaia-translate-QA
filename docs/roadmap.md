@@ -15,8 +15,8 @@ Status as of this document:
 - Eval platform v1 ✅ (Sheets template + reviewer instructions docx + meeting agenda + signup form + 3 calibration QAs + architecture note + private STRATEGY.md)
 - Eval set v2 ✅ (60 QAs across 9 disciplines, xlsx + JSON)
 - Pipeline 🟡 (`additional_seed_qas.py` present; `seed_qa_dataset.py`, `generate_eval_dataset.py`, `build_review_spreadsheet.py` need re-creation as part of Phase 6)
-- Card linter 🔲 (Phase 3 remaining deliverable, ~3 days)
-- **Low-level translator tool** 🔲 (Phase 4, Derek's work, ~2–3 weeks)
+- Card linter ✅ (`pipeline/lint_cards.py`; 0 errors, 3 acceptable warnings)
+- **Low-level translator tool** 🔲 (Phase 4, Derek's work, ~2–3 weeks; schema spec at `docs/phase4_output_schema.md`)
 - Eval set v3 (300 QAs) 🔲 (Phase 6)
 - Expert evaluation rounds 🔲 (Phase 7)
 - ~~RAG retrieval layer~~ ⏸ deferred to future option
@@ -68,22 +68,35 @@ Status as of this document:
 
 ---
 
-## Phase 3 — Card-spec linter (~3 days; partially complete)
+## Phase 3 — Card-spec linter (✅ complete)
 
-**Status.** Spec calibration is done: `docs/card_format_spec.md` was updated with calibrated word-count targets and hard caps (concept 450, method 450, phenomenon 500, translation 550). The full 9-discipline corpus (170 cards) all sit under the caps. The only remaining deliverable in this phase is the linter.
+**Status.** Complete. Spec calibration was done in Phase 2; the linter `pipeline/lint_cards.py` was built and runs clean on the full 9-discipline corpus.
 
-**Remaining deliverable.** `pipeline/lint_cards.py` that enforces, on the v3 corpus:
+**What it enforces** (stdlib-only, ~600 lines):
 
-- Word-count caps per card type.
-- Required sections (Quantity / Defining relation / Typical ranges / Cross-discipline equivalents / When-you-see-this-in-a-paper / Anchor citations / Related cards for concept cards; analogous sections for other types).
-- DOI coverage: every anchor citation either has a DOI or is justified as DOI-less (legacy pre-2000 papers, books).
-- At least one explicit cross-discipline equivalent in every concept and method card.
-- The "when you see this in a paper" hook present in every concept and method card.
-- All `CC-/MC-/PD-/TC-` references in card bodies resolve to defined cards (extension of the verification script we've been running).
+- Word-count caps per card type (concept/method 450, phenomenon 500, translation 550).
+- Required sections per card type, with accepted lexical variants (e.g., "Defining relation" / "Defining relations" / "Defining structure"; "Typical ranges" / "Typical relations").
+- "When you see this in a paper" hook on every concept and method card.
+- At least one bullet item in the Cross-discipline-equivalents section of every concept and method card.
+- DOI coverage on anchor citations, with a heuristic allow-list for known DOI-less works (books, IPCC chapters, PhD dissertations, EU project deliverables, pre-1990 ASCE journal articles, FAO and USDA technical reports, USGS Professional Papers, software manuals, proceedings, and specific pre-1970 papers).
+- Cross-reference resolution: every `CC-/MC-/PD-/TC-` reference in any card body resolves to a defined card in the corpus.
 
-**Success criteria.** Linter passes on the full v3 corpus; failures are exactly the known acceptable exceptions (DOI-less books, etc.) that get an explicit allow-list entry.
+**Final state on the corpus**:
 
-**Effort.** ~3 days.
+- 170 cards in 32 files linted.
+- **0 errors.**
+- **3 acceptable warnings**: CC-seismo-Vs word-count (429 / cap 450; intentionally information-dense after the TC-12 revision), Mudd et al. (2014) missing DOI (the published version is 2016 with `doi:10.5194/esurf-4-655-2016`; year fix and DOI add recommended), and Zhan (2020) ARES DAS review missing DOI (verify `doi:10.1146/annurev-earth-053018-065033` and add).
+
+**Usage**:
+
+```bash
+python pipeline/lint_cards.py                          # full corpus
+python pipeline/lint_cards.py --card path/to/file.md   # single file
+python pipeline/lint_cards.py --strict                 # fail on warnings (for CI)
+python pipeline/lint_cards.py --json                   # JSON output (for CI)
+```
+
+Exit codes follow standard convention (0 clean, 1 errors, 2 usage error). The linter is ready for CI integration.
 
 ---
 

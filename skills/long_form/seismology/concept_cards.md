@@ -32,7 +32,7 @@ Each card defines one core seismological variable, equation, or measured quantit
 
 **Anchor citations**:
 - Byerlee, J. (1978). Friction of rocks. *Pure and Applied Geophysics*, 116(4), 615–626. doi:10.1007/BF00876528
-- King, G. C. P., Stein, R. S., & Lin, J. (1994). Static stress changes and the triggering of earthquakes. *Bull. Seismol. Soc. Am.*, 84(3), 935–953.
+- King, G. C. P., Stein, R. S., & Lin, J. (1994). Static stress changes and the triggering of earthquakes. *Bull. Seismol. Soc. Am.*, 84(3), 935–953. doi:10.1785/BSSA0840030935
 - Allmann, B. P., & Shearer, P. M. (2009). Global variations of stress drop for moderate to large earthquakes. *Journal of Geophysical Research: Solid Earth*, 114(B1), B01310. doi:10.1029/2008JB005821
 
 **Related cards**: `CC-hydro-p`, `CC-geotech-MohrCoulomb`, `TC-02`, `PD-induced-seismicity`
@@ -121,7 +121,7 @@ Each card defines one core seismological variable, equation, or measured quantit
 **Anchor citations**:
 - Kanamori, H. (1977). The energy release in great earthquakes. *Journal of Geophysical Research*, 82(20), 2981–2987. doi:10.1029/JB082i020p02981
 - Hanks, T. C., & Kanamori, H. (1979). A moment magnitude scale. *Journal of Geophysical Research: Solid Earth*, 84(B5), 2348–2350. doi:10.1029/JB084iB05p02348
-- Wells, D. L., & Coppersmith, K. J. (1994). New empirical relationships among magnitude, rupture length, rupture width, rupture area, and surface displacement. *Bull. Seismol. Soc. Am.*, 84(4), 974–1002.
+- Wells, D. L., & Coppersmith, K. J. (1994). New empirical relationships among magnitude, rupture length, rupture width, rupture area, and surface displacement. *Bull. Seismol. Soc. Am.*, 84(4), 974–1002. doi:10.1785/BSSA0840040974
 
 **Related cards**: `CC-seismo-stress`, `CC-seismo-GR`, `PD-megathrust`, `PD-induced-seismicity`
 
@@ -194,6 +194,12 @@ Each card defines one core seismological variable, equation, or measured quantit
 - **Secondary microseism (~5–10 s, 0.1–0.2 Hz)**: pressure forcing from opposing wave-wave interactions in deep water (Longuet-Higgins 1950 mechanism). Globally the dominant ambient signal.
 - **Earth's hum (0.002–0.02 Hz)**: continuous excitation of normal modes, sourced by atmospheric and oceanic forcing.
 - **High-frequency (1–100 Hz)**: anthropogenic (vehicles, machinery), rivers and bedload transport (Burtin et al. 2008), wind, biological.
+
+**Typical ranges** (PSD reference per McNamara & Buland 2004 high/low noise models):
+- Quiet broadband stations at 5–10 s: PSD ≈ −150 to −170 dB (rel. 1 m²/s⁴/Hz).
+- Secondary microseism peak (0.1–0.2 Hz): PSD ≈ −110 to −130 dB; strongly modulated by ocean-storm activity.
+- High-frequency anthropogenic noise floor (1–10 Hz, urban): PSD ≈ −110 to −90 dB.
+- Earth's hum amplitude (0.002–0.02 Hz): ground acceleration ~10⁻⁹ to 10⁻¹⁰ m/s².
 
 **Cross-discipline equivalents** (vocabulary collisions, since "noise" is field-specific):
 - **Hydrology**: high-frequency seismic noise PSD correlates with stream discharge Q (`CC-hydro-Q`; Burtin et al. 2008); also captures glacier dynamics.

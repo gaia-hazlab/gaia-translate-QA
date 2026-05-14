@@ -124,7 +124,7 @@ Each dossier describes one real-world geotechnical phenomenon with cross-discipl
 - Real-time dv/v in cities (e.g., from urban DAS, Spica et al. 2020) potentially gives time-varying site-response calibration.
 
 **Anchor papers**:
-- Borcherdt, R. D. (1970). Effects of local geology on ground motion near San Francisco Bay. *Bull. Seismol. Soc. Am.*, 60(1), 29–61.
+- Borcherdt, R. D. (1970). Effects of local geology on ground motion near San Francisco Bay. *Bull. Seismol. Soc. Am.*, 60(1), 29–61. doi:10.1785/BSSA0600010029
 - Bard, P.-Y., & Bouchon, M. (1985). The two-dimensional resonance of sediment-filled valleys. *Bull. Seismol. Soc. Am.*, 75(2), 519–541. doi:10.1785/BSSA0750020519
 - Stewart, J. P., et al. (2014). Amplification factors for spectral acceleration in active regions. *Bull. Seismol. Soc. Am.*, 104(6), 3019–3036. doi:10.1785/0120130319
 
