@@ -187,6 +187,15 @@ See `docs/roadmap.md` for the prioritized plan. Phases 1–3 are complete (9-dis
 
 The eval set is the expert-graded benchmark for the Gaia translator chatbot. Phase 6 expands it from 60 QAs (v2) to ~300 (v3), each in the structured schema that maps directly to the chatbot's structured output (see `docs/eval_qa_schema.md`).
 
+**v3.1 dimensional framework** (revised post-prior-art-review against EarthSE / K2 / HydroLLM): each QA is tagged on four new dimensions beyond the original query_type + difficulty:
+
+- **`translation_task_types`** — 7-item taxonomy of cognitive translation operations (concept-mapping, method-translation, sensor-data-equivalence, data-availability-assessment, terminology-bridging, limitation-translation, parameter-threshold-equivalence).
+- **`tier`** — bronze / silver / gold, anchored to task complexity (EarthSE Iron/Silver/Gold model).
+- **`compound_coupling`** — explicit discipline-pair tagging for cross-discipline QAs, alphabetized within each pair (e.g., `hydrology-seismology`, not `seismology-hydrology`).
+- **`expected_output.failure_modes_tested`** — 7-item failure-mode taxonomy (hallucinated-analogue, concept-confusion, domain-ignorance, implausible-calibration, missing-constraint, false-equivalence, terminology-failure). This is the **headline addition**: per-failure-mode analysis at evaluation time is the publishable contribution per `docs/prior_art/REVISED_novelty_assessment_earthse_context.md`.
+
+See `docs/eval_dimensions_framework.md` for the full rationale; `docs/prior_art/` for the source analyses.
+
 ```bash
 # Regenerate the canonical JSON and the reviewer xlsx from the seed dataset
 python pipeline/validate_eval_set.py    # validates + writes eval_dataset/eval_dataset_v3.json

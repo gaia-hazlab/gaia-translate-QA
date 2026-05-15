@@ -59,6 +59,7 @@ import textwrap
 import uuid
 from collections import Counter
 from datetime import datetime
+from itertools import combinations
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -79,6 +80,69 @@ VALID_QUERY_TYPES = [
     "paper-interpretation", "integration", "vocabulary-disambiguation",
     "refusal-test", "joint-observation",
 ]
+
+# v3.1 dimensions (mirror VALID_* in validate_eval_set.py)
+VALID_TIERS = ["bronze", "silver", "gold"]
+VALID_TRANSLATION_TASK_TYPES = [
+    "concept-mapping", "method-translation", "sensor-data-equivalence",
+    "data-availability-assessment", "terminology-bridging",
+    "limitation-translation", "parameter-threshold-equivalence",
+]
+VALID_FAILURE_MODES = [
+    "hallucinated-analogue", "concept-confusion", "domain-ignorance",
+    "implausible-calibration", "missing-constraint", "false-equivalence",
+    "terminology-failure",
+]
+
+# Stratification targets (from docs/eval_dimensions_framework.md and
+# docs/eval_qa_schema.md §4). Used by auto_pick_gap.
+TARGETS = {
+    "query_type": {
+        "paper-interpretation": 120, "integration": 75,
+        "vocabulary-disambiguation": 45, "refusal-test": 30,
+        "joint-observation": 30,
+    },
+    "discipline": {d: 25 for d in VALID_DISCIPLINES},
+    "difficulty": {1: 30, 2: 60, 3: 120, 4: 60, 5: 30},
+    "tier": {"bronze": 150, "silver": 120, "gold": 30},
+    "translation_task_type": {
+        "concept-mapping": 80, "method-translation": 70,
+        "sensor-data-equivalence": 50, "data-availability-assessment": 30,
+        "terminology-bridging": 50, "limitation-translation": 50,
+        "parameter-threshold-equivalence": 35,
+    },
+    "failure_mode": {
+        "missing-constraint": 60, "domain-ignorance": 55,
+        "concept-confusion": 50, "false-equivalence": 50,
+        "implausible-calibration": 40, "terminology-failure": 40,
+        "hallucinated-analogue": 30,
+    },
+    # Canonical (alphabetized) compound-coupling targets — used by auto_pick_gap
+    # to pick a 2nd discipline when coupling coverage is the dominant gap.
+    "compound_coupling": {
+        "hydrology-seismology": 30,
+        "geotechnical_engineering-seismology": 25,
+        "geomorphology-seismology": 20,
+        "atmospheric_sciences-hydrology": 25,
+        "ecology-hydrology": 20,
+        "agricultural_sciences-hydrology": 20,
+        "geomorphology-hydrology": 25,
+        "atmospheric_sciences-geomorphology": 15,
+        "geotechnical_engineering-hydrology": 20,
+    },
+    # Cross-discipline-span QA-count targets (mirrors validate_eval_set.py
+    # TARGETS_FULL_SET["span"]; sums to 300 = 90 + 180 + 20 + 10).
+    "span": {1: 90, 2: 180, 3: 20, 4: 10},
+}
+
+# Failure modes that are meaningful for refusal-test prompts. The refusal-test
+# query type tests the chatbot's refusal/caveat behavior on questions it shouldn't
+# answer with confidence; the relevant failure modes are those a refusal-test can
+# actually probe. Tuple (not set) so iteration order is deterministic when used
+# as candidates for _pick_widest_gap_from.
+REFUSAL_RELEVANT_FAILURE_MODES = (
+    "hallucinated-analogue", "false-equivalence", "terminology-failure",
+)
 
 
 # ============================================================================
@@ -114,23 +178,46 @@ CRITICAL RULES:
    correct refusal pattern and populate must_not_say with phrases the chatbot
    must avoid.
 
-5. Difficulty calibration:
+5. Difficulty calibration (1-5 numeric):
    - 1: trivial textbook lookup
    - 2: easy single-discipline
    - 3: median graduate-student question (most QAs should be 3)
    - 4: hard cross-discipline with real failure modes
    - 5: research frontier
 
-6. Output is JSON conforming exactly to the schema. NO commentary, NO
+6. v3.1 NEW DIMENSIONS — every QA must include:
+   - `tier`: "bronze" | "silver" | "gold". Bronze = simple within- or simple-pair;
+     silver = cross-group modest; gold = advanced methodological synthesis.
+     Bronze ↔ difficulty 1-2, silver ↔ 3-4, gold ↔ 4-5.
+   - `translation_task_types`: list of 1-3 from {concept-mapping, method-translation,
+     sensor-data-equivalence, data-availability-assessment, terminology-bridging,
+     limitation-translation, parameter-threshold-equivalence}. These describe the
+     COGNITIVE OPERATION the chatbot performs, orthogonal to query_type (which is
+     the interaction shape).
+   - `compound_coupling`: list of "discipline-discipline" pairs, alphabetized
+     within each pair (e.g., "hydrology-seismology" not "seismology-hydrology").
+     Empty list [] for single-discipline QAs.
+   - `expected_output.failure_modes_tested`: list of 1-4 from {hallucinated-analogue,
+     concept-confusion, domain-ignorance, implausible-calibration,
+     missing-constraint, false-equivalence, terminology-failure}. THIS IS THE
+     KEY FIELD — it identifies which failure modes the QA probes. Per-failure-mode
+     analysis is the methodology paper's publishable contribution.
+
+7. Output is JSON conforming exactly to the schema. NO commentary, NO
    surrounding prose. Just the JSON object.
 """
 
 USER_PROMPT_TEMPLATE = """\
-Generate ONE candidate v3 eval QA with these constraints:
+Generate ONE candidate v3.1 eval QA with these constraints:
 
-- Primary discipline(s): {disciplines}
+- Primary discipline(s) (use EXACTLY this list, in this order): {disciplines}
+- Compound coupling (use EXACTLY this list — alphabetized canonical pairs, one per
+  C(N,2) pair of the disciplines above; empty list for single-discipline): {compound_coupling}
 - Query type: {query_type}
-- Difficulty: {difficulty}
+- Difficulty (numeric, 1-5): {difficulty}
+- Tier: {tier}
+- Primary translation task type (you can add 0-2 secondary types): {primary_task_type}
+- Primary failure mode probed (you can add 0-3 more): {primary_failure_mode}
 - ID: {qa_id}
 
 The QA should explore one of the cross-discipline frontiers actively studied
@@ -138,14 +225,17 @@ in the GAIA HazLab agenda or in standard geoscience research practice.
 Prefer real-paper anchoring when possible (e.g., reference a real publication
 the researcher might be reading).
 
-Output a single JSON object with this exact shape:
+Output a single JSON object with this exact shape (v3.1 schema):
 
 ```json
 {{
   "id": "{qa_id}",
   "schema_version": "v3",
-  "primary_disciplines": [...],
+  "primary_disciplines": {disciplines},
   "query_type": "{query_type}",
+  "translation_task_types": ["{primary_task_type}", ...],
+  "tier": "{tier}",
+  "compound_coupling": {compound_coupling},
   "difficulty": {difficulty},
   "prompt": "...",
   "input_document": {{
@@ -161,6 +251,7 @@ Output a single JSON object with this exact shape:
     "translation_matches": ["TC-..."],
     "vocabulary_collisions_flagged": [],
     "refusals_or_caveats_expected": [],
+    "failure_modes_tested": ["{primary_failure_mode}", ...],
     "user_specific_response_themes": [
       "Theme 1: ...",
       "Theme 2: ...",
@@ -179,9 +270,18 @@ Output a single JSON object with this exact shape:
 }}
 ```
 
-Remember: card IDs must reference REAL cards in the loaded corpus. Use only
-3-6 specific themes. If your query_type is refusal-test, populate
-refusals_or_caveats_expected and must_not_say. Output JSON only.
+CRITICAL constraints:
+- card IDs must reference REAL cards in the loaded corpus.
+- `primary_disciplines` must be EXACTLY {disciplines}.
+- `compound_coupling` must be EXACTLY {compound_coupling} (already alphabetized,
+  one entry per C(N,2) pair of primary_disciplines).
+- `translation_task_types` must have 1-3 entries from the 7-item taxonomy.
+- `failure_modes_tested` must have 1-4 entries from the 7-item taxonomy.
+- Use 3-6 specific response themes.
+- If query_type is refusal-test, populate refusals_or_caveats_expected
+  AND must_not_say AND failure_modes_tested with the refusal-relevant modes.
+
+Output JSON only.
 """
 
 
@@ -245,15 +345,19 @@ def load_corpus_long_form(corpus_root: Path) -> str:
 def draft_one_qa(
     corpus_context: str,
     disciplines: List[str],
+    compound_coupling: List[str],
     query_type: str,
     difficulty: int,
     qa_id: str,
+    tier: str,
+    primary_task_type: str,
+    primary_failure_mode: str,
     long_form_context: Optional[str] = None,
     model: str = DEFAULT_MODEL,
     max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> Dict:
     """
-    Call Claude to draft one candidate QA.
+    Call Claude to draft one candidate v3.1 QA.
 
     Returns the parsed JSON dict. Raises if the API key is missing or
     the response can't be parsed.
@@ -270,9 +374,13 @@ def draft_one_qa(
     client = anthropic.Anthropic(api_key=api_key)
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
-        disciplines=disciplines,
+        disciplines=json.dumps(disciplines),
+        compound_coupling=json.dumps(compound_coupling),
         query_type=query_type,
         difficulty=difficulty,
+        tier=tier,
+        primary_task_type=primary_task_type,
+        primary_failure_mode=primary_failure_mode,
         qa_id=qa_id,
     )
 
@@ -329,37 +437,226 @@ def next_qa_id(existing: List[str]) -> str:
     return f"QA-EVAL-{n:03d}"
 
 
+def _pick_widest_gap(targets: Dict, actuals: Counter) -> str:
+    """Pick the key with the largest (target - actual) deficit."""
+    return max(targets, key=lambda k: targets[k] - actuals.get(k, 0))
+
+
+def _pick_widest_gap_from(targets: Dict, actuals: Counter, candidates) -> str:
+    """Pick the candidate key with the largest (target - actual) deficit."""
+    return max(candidates, key=lambda k: targets.get(k, 0) - actuals.get(k, 0))
+
+
 def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
     """
-    Identify the worst undercoverage in the current eval set vs. targets.
-    Returns a dict {"disciplines": [...], "query_type": "...", "difficulty": N}.
-    """
-    # Targets from docs/eval_qa_schema.md
-    target_qt = {
-        "paper-interpretation": 120, "integration": 75,
-        "vocabulary-disambiguation": 45, "refusal-test": 30,
-        "joint-observation": 30,
-    }
-    target_disc = {d: 25 for d in VALID_DISCIPLINES}
-    target_diff = {1: 30, 2: 60, 3: 120, 4: 60, 5: 30}
+    Identify the worst undercoverage in the current eval set vs. v3.1 targets.
 
+    Picks the most-undercovered value INDEPENDENTLY for each of the 6 dimensions:
+    query_type, discipline, difficulty, tier, primary_task_type, primary_failure_mode.
+
+    Returns a dict with all six keys, ready to drive draft_one_qa(). The LLM is
+    free to add secondary task types and additional failure modes; the picked
+    values are the PRIMARY/required ones.
+
+    Returns
+    -------
+    dict:
+        {
+          "disciplines": [str],          # 1-4 disciplines (span-based)
+          "compound_coupling": [str],    # C(N,2) canonical pairs of disciplines (empty for span=1)
+          "query_type": str,
+          "difficulty": int,
+          "tier": str,                   # bronze / silver / gold
+          "primary_task_type": str,      # one of 7 translation task types
+          "primary_failure_mode": str,   # one of 7 failure modes
+        }
+    """
+    # Tally existing actuals across all 6 dimensions
     actual_qt = Counter(qa["query_type"] for qa in existing_qas)
-    actual_disc = Counter()
+    actual_disc: Counter = Counter()
     for qa in existing_qas:
-        for d in qa["primary_disciplines"]:
+        for d in qa.get("primary_disciplines", []):
             actual_disc[d] += 1
     actual_diff = Counter(qa["difficulty"] for qa in existing_qas)
+    actual_tier = Counter(qa.get("tier", "") for qa in existing_qas)
+    actual_task_type: Counter = Counter()
+    for qa in existing_qas:
+        for t in qa.get("translation_task_types", []):
+            actual_task_type[t] += 1
+    actual_failure_mode: Counter = Counter()
+    for qa in existing_qas:
+        for f in qa.get("expected_output", {}).get("failure_modes_tested", []):
+            actual_failure_mode[f] += 1
+    actual_coupling: Counter = Counter()
+    for qa in existing_qas:
+        for c in qa.get("compound_coupling", []):
+            actual_coupling[c] += 1
 
-    # Pick query type with highest target-actual ratio
-    gap_qt = max(target_qt, key=lambda k: target_qt[k] - actual_qt.get(k, 0))
-    gap_disc = max(target_disc, key=lambda k: target_disc[k] - actual_disc.get(k, 0))
-    gap_diff = max(target_diff, key=lambda k: target_diff[k] - actual_diff.get(k, 0))
+    # Pick the most-undercovered value in each dimension
+    gap_qt = _pick_widest_gap(TARGETS["query_type"], actual_qt)
+    gap_disc = _pick_widest_gap(TARGETS["discipline"], actual_disc)
+    gap_diff = _pick_widest_gap(TARGETS["difficulty"], actual_diff)
+    gap_tier = _pick_widest_gap(TARGETS["tier"], actual_tier)
+    gap_task_type = _pick_widest_gap(TARGETS["translation_task_type"], actual_task_type)
+    gap_failure_mode = _pick_widest_gap(TARGETS["failure_mode"], actual_failure_mode)
+
+    # Self-consistency nudges:
+    # - Bronze tier usually difficulty 1-2; silver 3-4; gold 4-5. If gap_tier
+    #   and gap_diff disagree, snap to the in-range endpoint with the larger
+    #   remaining deficit (so we don't always pick the closest endpoint and
+    #   skew the difficulty distribution).
+    tier_to_diff_range = {"bronze": (1, 2), "silver": (3, 4), "gold": (4, 5)}
+    diff_lo, diff_hi = tier_to_diff_range[gap_tier]
+    if not (diff_lo <= gap_diff <= diff_hi):
+        gap_diff = _pick_widest_gap_from(
+            TARGETS["difficulty"], actual_diff, [diff_lo, diff_hi]
+        )
+
+    # - refusal-test query type implies failure_modes should be in the
+    #   refusal-relevant subset. Pick the most-undercovered mode in that subset
+    #   rather than hard-coding a default, so the auto loop doesn't repeatedly
+    #   overfill one refusal mode while others remain underfilled.
+    if gap_qt == "refusal-test" and gap_failure_mode not in REFUSAL_RELEVANT_FAILURE_MODES:
+        gap_failure_mode = _pick_widest_gap_from(
+            TARGETS["failure_mode"], actual_failure_mode, REFUSAL_RELEVANT_FAILURE_MODES
+        )
+
+    # Span: pick the cross-discipline span (1/2/3/4) with the largest deficit
+    # against TARGETS["span"]. The seed/eval-set distribution targets 90 single-
+    # discipline QAs, 70 two-discipline, 20 three-discipline, and 10 four-
+    # discipline, so the auto loop has to be able to emit 3- and 4-discipline
+    # QAs to fill those span targets.
+    span_actual = Counter(
+        len(qa.get("primary_disciplines", [])) for qa in existing_qas
+    )
+    span_deficits = {
+        s: TARGETS["span"][s] - span_actual.get(s, 0) for s in TARGETS["span"]
+    }
+    target_span = max(span_deficits, key=span_deficits.get)
+
+    if target_span == 1:
+        disciplines = [gap_disc]
+        coupling_pairs: List[str] = []
+    elif target_span == 2:
+        # Pick the most-undercovered coupling, preferring one that includes
+        # gap_disc only when that candidate's own deficit is positive (so we
+        # don't overfill an at-target pair just to include gap_disc).
+        worst_coupling = max(
+            TARGETS["compound_coupling"],
+            key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
+        )
+        candidates_with_gap_disc = [
+            c for c in TARGETS["compound_coupling"] if gap_disc in c.split("-", 1)
+        ]
+        if candidates_with_gap_disc:
+            preferred = max(
+                candidates_with_gap_disc,
+                key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
+            )
+            preferred_deficit = (
+                TARGETS["compound_coupling"][preferred]
+                - actual_coupling.get(preferred, 0)
+            )
+            coupling = preferred if preferred_deficit > 0 else worst_coupling
+        else:
+            coupling = worst_coupling
+        d1, d2 = coupling.split("-", 1)
+        disciplines = [d1, d2]
+        coupling_pairs = [coupling]
+    else:
+        # 3- or 4-discipline QA: pick the top-N most-undercovered disciplines
+        # and emit every canonical C(N,2) pair. (gap_disc is by construction
+        # the discipline with the largest deficit, so it is always in the
+        # top-N slice.)
+        ranked = sorted(
+            TARGETS["discipline"],
+            key=lambda d: TARGETS["discipline"][d] - actual_disc.get(d, 0),
+            reverse=True,
+        )
+        disciplines = sorted(ranked[:target_span])
+        coupling_pairs = [f"{a}-{b}" for a, b in combinations(disciplines, 2)]
 
     return {
-        "disciplines": [gap_disc],
+        "disciplines": disciplines,
+        "compound_coupling": coupling_pairs,
         "query_type": gap_qt,
         "difficulty": gap_diff,
+        "tier": gap_tier,
+        "primary_task_type": gap_task_type,
+        "primary_failure_mode": gap_failure_mode,
     }
+
+
+def report_coverage(existing_qas: List[Dict]) -> str:
+    """Pretty-print current coverage vs. targets. Useful as `--coverage` output."""
+    lines = ["Coverage vs. v3.1 targets:"]
+    lines.append(f"  Total: {len(existing_qas)} / 300 ({100*len(existing_qas)/300:.0f}%)")
+    lines.append("")
+
+    actual_qt = Counter(qa["query_type"] for qa in existing_qas)
+    lines.append("  By query type:")
+    for k, target in TARGETS["query_type"].items():
+        actual = actual_qt.get(k, 0)
+        lines.append(f"    {k:30s} {actual:3d} / {target}  (gap {target - actual})")
+
+    actual_disc: Counter = Counter()
+    for qa in existing_qas:
+        for d in qa.get("primary_disciplines", qa.get("disciplines", [])):
+            actual_disc[d] += 1
+    lines.append("  By discipline:")
+    for k, target in TARGETS["discipline"].items():
+        actual = actual_disc.get(k, 0)
+        lines.append(f"    {k:30s} {actual:3d} / {target}  (gap {target - actual})")
+
+    actual_diff = Counter(qa.get("difficulty", 0) for qa in existing_qas)
+    lines.append("  By difficulty:")
+    for k, target in TARGETS["difficulty"].items():
+        actual = actual_diff.get(k, 0)
+        lines.append(f"    difficulty={k}                    {actual:3d} / {target}  (gap {target - actual})")
+
+    actual_tier = Counter(qa.get("tier", "") for qa in existing_qas)
+    lines.append("  By tier:")
+    for k, target in TARGETS["tier"].items():
+        actual = actual_tier.get(k, 0)
+        lines.append(f"    {k:30s} {actual:3d} / {target}  (gap {target - actual})")
+
+    actual_task: Counter = Counter()
+    for qa in existing_qas:
+        for t in qa.get("translation_task_types", []):
+            actual_task[t] += 1
+    lines.append("  By translation task type:")
+    for k, target in TARGETS["translation_task_type"].items():
+        actual = actual_task.get(k, 0)
+        lines.append(f"    {k:35s} {actual:3d} / {target}  (gap {target - actual})")
+
+    actual_fm: Counter = Counter()
+    for qa in existing_qas:
+        for f in qa.get("expected_output", {}).get("failure_modes_tested", []):
+            actual_fm[f] += 1
+    lines.append("  By failure mode tested:")
+    for k, target in TARGETS["failure_mode"].items():
+        actual = actual_fm.get(k, 0)
+        lines.append(f"    {k:30s} {actual:3d} / {target}  (gap {target - actual})")
+
+    actual_coupling: Counter = Counter()
+    for qa in existing_qas:
+        for c in qa.get("compound_coupling", []) or []:
+            actual_coupling[c] += 1
+    lines.append("  By compound coupling (pair occurrences):")
+    for k, target in TARGETS["compound_coupling"].items():
+        actual = actual_coupling.get(k, 0)
+        lines.append(f"    {k:40s} {actual:3d} / {target}  (gap {target - actual})")
+
+    span_actual = Counter(
+        len(qa.get("primary_disciplines", []) or []) for qa in existing_qas
+    )
+    lines.append("  By cross-discipline span (QA-count, sums to 300):")
+    for s, target in TARGETS["span"].items():
+        actual = span_actual.get(s, 0)
+        label = f"span={s}" + (" (single-disc)" if s == 1 else "")
+        lines.append(f"    {label:30s} {actual:3d} / {target}  (gap {target - actual})")
+
+    return "\n".join(lines)
 
 
 # ============================================================================
@@ -367,14 +664,22 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
 # ============================================================================
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Draft new v3 eval QAs via Claude.")
+    parser = argparse.ArgumentParser(description="Draft new v3.1 eval QAs via Claude.")
     parser.add_argument("--discipline", help="Primary discipline. Required unless --auto.")
     parser.add_argument("--query-type", choices=VALID_QUERY_TYPES,
                         help="Query type. Required unless --auto.")
     parser.add_argument("--difficulty", type=int, choices=[1, 2, 3, 4, 5],
-                        help="Difficulty. Required unless --auto.")
+                        help="Difficulty 1-5. Required unless --auto.")
+    parser.add_argument("--tier", choices=VALID_TIERS,
+                        help="bronze | silver | gold. Required unless --auto.")
+    parser.add_argument("--task-type", dest="task_type", choices=VALID_TRANSLATION_TASK_TYPES,
+                        help="Primary translation task type. Required unless --auto.")
+    parser.add_argument("--failure-mode", dest="failure_mode", choices=VALID_FAILURE_MODES,
+                        help="Primary failure mode the QA should probe. Required unless --auto.")
     parser.add_argument("--auto", action="store_true",
-                        help="Auto-select discipline/type/difficulty by gap analysis.")
+                        help="Auto-select all 6 dimensions by gap analysis.")
+    parser.add_argument("--coverage", action="store_true",
+                        help="Print coverage vs. targets and exit (no drafting).")
     parser.add_argument("--n", type=int, default=1, help="Number of QAs to draft.")
     parser.add_argument("--out", type=Path, default=Path("drafts/"),
                         help="Output directory or single JSON file.")
@@ -389,15 +694,30 @@ def main(argv=None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not args.auto and not (args.discipline and args.query_type and args.difficulty):
-        print("ERROR: specify --discipline, --query-type, --difficulty, or use --auto.",
+    # --coverage: report and exit
+    if args.coverage:
+        try:
+            sys.path.insert(0, str(args.corpus_root / "pipeline"))
+            from seed_qa_dataset import SEED_QAS
+            print(report_coverage(SEED_QAS))
+        except Exception as e:
+            print(f"ERROR loading seed QAs: {e}", file=sys.stderr)
+            return 2
+        return 0
+
+    # Validate manual-mode args: all 6 dimensions required if --auto isn't set
+    manual_required = (args.discipline, args.query_type, args.difficulty,
+                       args.tier, args.task_type, args.failure_mode)
+    if not args.auto and not all(manual_required):
+        print("ERROR: specify --discipline, --query-type, --difficulty, --tier, "
+              "--task-type, --failure-mode, or use --auto.",
               file=sys.stderr)
         return 2
 
     corpus_context = load_corpus_as_context(args.corpus_root)
     long_form_context = load_corpus_long_form(args.corpus_root) if args.with_long_form else None
     existing_ids = load_existing_qa_ids(args.corpus_root)
-    existing_qas = []
+    existing_qas: List[Dict] = []
     if args.auto:
         # Load existing for gap analysis
         try:
@@ -423,30 +743,56 @@ def main(argv=None) -> int:
         if args.auto:
             choice = auto_pick_gap(existing_qas + drafted)
             disciplines = choice["disciplines"]
+            compound_coupling = choice["compound_coupling"]
             query_type = choice["query_type"]
             difficulty = choice["difficulty"]
+            tier = choice["tier"]
+            primary_task_type = choice["primary_task_type"]
+            primary_failure_mode = choice["primary_failure_mode"]
         else:
             disciplines = [args.discipline]
+            compound_coupling = []
             query_type = args.query_type
             difficulty = args.difficulty
+            tier = args.tier
+            primary_task_type = args.task_type
+            primary_failure_mode = args.failure_mode
 
         qa_id = next_qa_id(existing_ids + [qa["id"] for qa in drafted])
 
         if args.dry_run:
-            print(f"[DRY RUN] Would draft: {qa_id} "
-                  f"({disciplines}, {query_type}, difficulty={difficulty})")
-            drafted.append({"id": qa_id, "primary_disciplines": disciplines,
-                            "query_type": query_type, "difficulty": difficulty})
+            print(f"[DRY RUN] Would draft: {qa_id}")
+            print(f"            disciplines={disciplines}, coupling={compound_coupling}, "
+                  f"query_type={query_type}, diff={difficulty}")
+            print(f"            tier={tier}, primary_task_type={primary_task_type}")
+            print(f"            primary_failure_mode={primary_failure_mode}")
+            # Track minimal fields in drafted list so the auto-prioritizer
+            # can avoid re-picking the same gap on the next iteration.
+            drafted.append({
+                "id": qa_id,
+                "primary_disciplines": disciplines,
+                "compound_coupling": compound_coupling,
+                "query_type": query_type,
+                "difficulty": difficulty,
+                "tier": tier,
+                "translation_task_types": [primary_task_type],
+                "expected_output": {"failure_modes_tested": [primary_failure_mode]},
+            })
             continue
 
-        print(f"Drafting {qa_id} ({disciplines}, {query_type}, diff={difficulty})...")
+        print(f"Drafting {qa_id} ({disciplines}, {query_type}, diff={difficulty}, "
+              f"tier={tier}, task={primary_task_type}, fm={primary_failure_mode})...")
         try:
             qa = draft_one_qa(
                 corpus_context=corpus_context,
                 disciplines=disciplines,
+                compound_coupling=compound_coupling,
                 query_type=query_type,
                 difficulty=difficulty,
                 qa_id=qa_id,
+                tier=tier,
+                primary_task_type=primary_task_type,
+                primary_failure_mode=primary_failure_mode,
                 long_form_context=long_form_context,
                 model=args.model,
             )

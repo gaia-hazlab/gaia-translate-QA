@@ -33,6 +33,7 @@ import re
 import sys
 from collections import Counter
 from dataclasses import dataclass, field, asdict
+from itertools import combinations
 from pathlib import Path
 from typing import List, Set, Dict, Optional
 
@@ -68,6 +69,21 @@ VALID_REFUSAL_TYPES = {
 
 VALID_STATUSES = {"draft", "reviewed", "approved", "deprecated"}
 
+# v3.1 new enums
+VALID_TRANSLATION_TASK_TYPES = {
+    "concept-mapping", "method-translation", "sensor-data-equivalence",
+    "data-availability-assessment", "terminology-bridging",
+    "limitation-translation", "parameter-threshold-equivalence",
+}
+
+VALID_TIERS = {"bronze", "silver", "gold"}
+
+VALID_FAILURE_MODES = {
+    "hallucinated-analogue", "concept-confusion", "domain-ignorance",
+    "implausible-calibration", "missing-constraint", "false-equivalence",
+    "terminology-failure",
+}
+
 ID_PATTERN = re.compile(r"^(QA-EVAL|QA-CAL|QA-HELDOUT)-\d{3,}$")
 CARD_ID_PATTERN = re.compile(r"^(CC|MC|PD|TC)-[A-Za-z0-9_-]+$")
 
@@ -79,7 +95,9 @@ TARGETS_FULL_SET = {
         "geomorphology": 25, "atmospheric_sciences": 25, "ecology": 25,
         "agricultural_sciences": 25, "near_surface_geophysics": 25,
     },
-    "by_cross_discipline_span": {2: 70, 3: 20, 4: 10},
+    # Span = number of disciplines per QA. Sums to 300 = 90 + 180 + 20 + 10
+    # (matches generate_eval_dataset.py TARGETS["span"]).
+    "by_cross_discipline_span": {1: 90, 2: 180, 3: 20, 4: 10},
     "by_query_type": {
         "paper-interpretation": 120,
         "integration": 75,
@@ -88,9 +106,40 @@ TARGETS_FULL_SET = {
         "joint-observation": 30,
     },
     "by_difficulty": {1: 30, 2: 60, 3: 120, 4: 60, 5: 30},
+    # v3.1 dimension targets (mirror pipeline/generate_eval_dataset.py TARGETS and
+    # docs/eval_dimensions_framework.md §2-4).
+    "by_tier": {"bronze": 150, "silver": 120, "gold": 30},
+    "by_translation_task_type": {
+        "concept-mapping": 80, "method-translation": 70,
+        "sensor-data-equivalence": 50, "data-availability-assessment": 30,
+        "terminology-bridging": 50, "limitation-translation": 50,
+        "parameter-threshold-equivalence": 35,
+    },
+    "by_failure_mode_tested": {
+        "missing-constraint": 60, "domain-ignorance": 55,
+        "concept-confusion": 50, "false-equivalence": 50,
+        "implausible-calibration": 40, "terminology-failure": 40,
+        "hallucinated-analogue": 30,
+    },
+    "by_compound_coupling": {
+        "hydrology-seismology": 30,
+        "geotechnical_engineering-seismology": 25,
+        "geomorphology-seismology": 20,
+        "atmospheric_sciences-hydrology": 25,
+        "ecology-hydrology": 20,
+        "agricultural_sciences-hydrology": 20,
+        "geomorphology-hydrology": 25,
+        "atmospheric_sciences-geomorphology": 15,
+        "geotechnical_engineering-hydrology": 20,
+    },
     "tolerance_per_discipline": 5,
     "tolerance_per_query_type_pct": 0.05,
     "tolerance_per_difficulty": 15,
+    "tolerance_per_tier": 15,
+    "tolerance_per_task_type": 10,
+    "tolerance_per_failure_mode": 10,
+    "tolerance_per_coupling": 5,
+    "tolerance_per_span": 15,
 }
 
 
@@ -184,6 +233,119 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
         report.add("error", "query-type", qa_id,
                    f"query_type '{qt}' must be one of {VALID_QUERY_TYPES}.")
 
+    # translation_task_types (v3.1) — required, 1-3 distinct entries
+    ttt = qa.get("translation_task_types", [])
+    if not isinstance(ttt, list) or not ttt:
+        report.add("error", "translation-task-types", qa_id,
+                   "translation_task_types must be a non-empty list (1-3 entries).")
+    else:
+        if not 1 <= len(ttt) <= 3:
+            report.add("error", "translation-task-types", qa_id,
+                       f"translation_task_types must have 1-3 entries; got {len(ttt)}.")
+        non_string = [t for t in ttt if not isinstance(t, str)]
+        if non_string:
+            report.add("error", "translation-task-types", qa_id,
+                       f"translation_task_types must contain only strings; got non-string {non_string!r}.")
+        string_entries = [t for t in ttt if isinstance(t, str)]
+        if len(set(string_entries)) != len(string_entries):
+            report.add("error", "translation-task-types", qa_id,
+                       f"translation_task_types contains duplicates: {string_entries}.")
+        for t in string_entries:
+            if t not in VALID_TRANSLATION_TASK_TYPES:
+                report.add("error", "translation-task-types", qa_id,
+                           f"unknown translation task type '{t}'; must be one of {sorted(VALID_TRANSLATION_TASK_TYPES)}.")
+
+    # tier (v3.1)
+    tier = qa.get("tier")
+    if tier not in VALID_TIERS:
+        report.add("error", "tier", qa_id,
+                   f"tier '{tier}' must be one of {VALID_TIERS}.")
+
+    # compound_coupling (v3.1) — REQUIRED field on every QA. For an N-discipline
+    # QA, the list must contain exactly C(N,2) canonical (alphabetized) pairs
+    # covering every pair of primary_disciplines. Single-discipline QAs must
+    # provide an explicit empty list `[]` (not omit the field).
+    parsed_pairs: Set[tuple] = set()
+    coupling_valid = True
+    if "compound_coupling" not in qa:
+        report.add("error", "compound-coupling", qa_id,
+                   "compound_coupling is required (use [] for single-discipline QAs).")
+        coupling_valid = False
+        cc = []
+    else:
+        cc = qa["compound_coupling"]
+    if not isinstance(cc, list):
+        report.add("error", "compound-coupling", qa_id,
+                   "compound_coupling must be a list (empty for single-disc QAs).")
+        coupling_valid = False
+        cc = []
+
+    # Per-entry type/format check first — non-string entries are reported as
+    # errors and excluded from the duplicate / coverage checks below so the
+    # validator doesn't crash on unhashable values.
+    string_pairs: List[str] = []
+    for pair in cc:
+        if not isinstance(pair, str):
+            report.add("error", "compound-coupling", qa_id,
+                       f"compound_coupling entry {pair!r} must be a 'discipline-discipline' string.")
+            coupling_valid = False
+            continue
+        if "-" not in pair:
+            report.add("error", "compound-coupling", qa_id,
+                       f"compound_coupling entry '{pair}' must be 'discipline-discipline' format.")
+            coupling_valid = False
+            continue
+        # Split on the first hyphen: discipline names may contain underscores
+        # but never hyphens, so the first hyphen separates the two disciplines.
+        parts = pair.split("-", 1)
+        if len(parts) != 2:
+            report.add("error", "compound-coupling", qa_id,
+                       f"compound_coupling entry '{pair}' has unexpected format.")
+            coupling_valid = False
+            continue
+        d1, d2 = parts[0], parts[1]
+        if d1 not in VALID_DISCIPLINES or d2 not in VALID_DISCIPLINES:
+            report.add("error", "compound-coupling", qa_id,
+                       f"compound_coupling '{pair}' references unknown discipline(s).")
+            coupling_valid = False
+            continue
+        if d1 >= d2:
+            report.add("error", "compound-coupling-order", qa_id,
+                       f"compound_coupling '{pair}' is not alphabetized within pair "
+                       f"(canonical: '{min(d1,d2)}-{max(d1,d2)}').")
+            coupling_valid = False
+            continue
+        string_pairs.append(pair)
+        parsed_pairs.add((d1, d2))
+
+    if len(string_pairs) != len(set(string_pairs)):
+        seen = Counter(string_pairs)
+        dups = sorted(p for p, n in seen.items() if n > 1)
+        report.add("error", "compound-coupling-duplicates", qa_id,
+                   f"compound_coupling contains duplicate pair(s): {dups}.")
+        coupling_valid = False
+
+    # Coverage check: parsed pairs must equal the C(N,2) pairs of primary_disciplines.
+    if coupling_valid and isinstance(pdsc, list) and pdsc:
+        valid_disc_in_pdsc = [d for d in pdsc if d in VALID_DISCIPLINES]
+        expected_pairs = {
+            (a, b) for a, b in (
+                tuple(sorted([d1, d2])) for d1, d2 in combinations(valid_disc_in_pdsc, 2)
+            )
+        }
+        if expected_pairs != parsed_pairs:
+            missing = expected_pairs - parsed_pairs
+            extra = parsed_pairs - expected_pairs
+            details = []
+            if missing:
+                details.append("missing " + ", ".join(f"'{a}-{b}'" for a, b in sorted(missing)))
+            if extra:
+                details.append("unexpected " + ", ".join(f"'{a}-{b}'" for a, b in sorted(extra)))
+            report.add("error", "compound-coupling-coverage", qa_id,
+                       f"compound_coupling must contain exactly the C(N,2) canonical pairs of "
+                       f"primary_disciplines ({len(expected_pairs)} for {len(valid_disc_in_pdsc)} "
+                       f"disciplines); " + "; ".join(details) + ".")
+
     # difficulty
     diff = qa.get("difficulty")
     if not isinstance(diff, int) or not 1 <= diff <= 5:
@@ -230,6 +392,28 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
             if r not in VALID_REFUSAL_TYPES:
                 report.add("error", "refusal-type", qa_id,
                            f"refusals_or_caveats_expected '{r}' must be one of {VALID_REFUSAL_TYPES}.")
+
+        # failure_modes_tested (v3.1) — required, 1-4 distinct entries
+        fm = exp.get("failure_modes_tested", [])
+        if not isinstance(fm, list) or not fm:
+            report.add("error", "failure-modes", qa_id,
+                       "expected_output.failure_modes_tested must be a non-empty list (1-4 entries).")
+        else:
+            if len(fm) > 4:
+                report.add("error", "failure-modes-count", qa_id,
+                           f"failure_modes_tested has {len(fm)} entries; must be 1-4.")
+            non_string = [f for f in fm if not isinstance(f, str)]
+            if non_string:
+                report.add("error", "failure-modes", qa_id,
+                           f"failure_modes_tested must contain only strings; got non-string {non_string!r}.")
+            string_fms = [f for f in fm if isinstance(f, str)]
+            if len(set(string_fms)) != len(string_fms):
+                report.add("error", "failure-modes-duplicates", qa_id,
+                           f"failure_modes_tested contains duplicates: {string_fms}.")
+            for f in string_fms:
+                if f not in VALID_FAILURE_MODES:
+                    report.add("error", "failure-modes", qa_id,
+                               f"unknown failure mode '{f}'; must be one of {sorted(VALID_FAILURE_MODES)}.")
 
         # Themes: 3-6 specific themes recommended
         themes = exp.get("user_specific_response_themes", [])
@@ -288,19 +472,59 @@ def check_duplicates(qas: List[Dict], report: ValidationReport) -> None:
 # ============================================================================
 
 def compute_stats(qas: List[Dict]) -> Dict:
-    by_query_type = Counter(qa["query_type"] for qa in qas)
-    by_difficulty = Counter(qa["difficulty"] for qa in qas)
-    by_status = Counter(qa["status"] for qa in qas)
+    # Use .get() everywhere so a QA missing a required field (already flagged
+    # as an error by validate_qa) doesn't crash the stats pass and prevent the
+    # rest of the validation report from being emitted.
+    by_query_type = Counter(qa.get("query_type", "<missing>") for qa in qas)
+    by_difficulty = Counter(qa.get("difficulty", 0) for qa in qas)
+    by_status = Counter(qa.get("status", "<missing>") for qa in qas)
 
-    # By primary discipline (each QA counted once per discipline)
-    by_discipline = Counter()
+    # By primary discipline (each QA counted once per discipline it touches)
+    by_discipline: Counter = Counter()
     for qa in qas:
-        for d in qa["primary_disciplines"]:
+        for d in qa.get("primary_disciplines", []) or []:
             by_discipline[d] += 1
 
     # Cross-discipline span
-    by_span = Counter(len(qa["primary_disciplines"]) for qa in qas)
+    by_span = Counter(
+        len(qa.get("primary_disciplines", []) or []) for qa in qas
+    )
 
+    # v3.1: tier
+    by_tier = Counter(qa.get("tier", "unknown") for qa in qas)
+
+    # v3.1: translation task types (each QA contributes to multiple). String-only
+    # filter so a malformed non-string entry doesn't corrupt stats; validate_qa
+    # already errored on it.
+    by_task_type: Counter = Counter()
+    for qa in qas:
+        for t in qa.get("translation_task_types", []) or []:
+            if isinstance(t, str):
+                by_task_type[t] += 1
+
+    # v3.1: compound coupling — count each distinct pair once per QA so a
+    # duplicated entry (already flagged elsewhere) doesn't inflate the stats.
+    by_coupling: Counter = Counter()
+    for qa in qas:
+        seen_pairs: Set[str] = set()
+        for c in qa.get("compound_coupling", []) or []:
+            if isinstance(c, str) and c not in seen_pairs:
+                seen_pairs.add(c)
+                by_coupling[c] += 1
+    single_disc_count = sum(1 for qa in qas if not qa.get("compound_coupling"))
+
+    # v3.1: failure modes (each QA contributes to multiple, distinct only).
+    by_failure_mode: Counter = Counter()
+    for qa in qas:
+        seen_fms: Set[str] = set()
+        for f in qa.get("expected_output", {}).get("failure_modes_tested", []) or []:
+            if isinstance(f, str) and f not in seen_fms:
+                seen_fms.add(f)
+                by_failure_mode[f] += 1
+
+    # Note: int keys are preserved here so check_stratification() can look up
+    # targets by their native int keys (difficulty, span). json.dump auto-stringifies
+    # int dict keys when serializing the canonical JSON.
     return {
         "total": len(qas),
         "by_query_type": dict(by_query_type),
@@ -308,6 +532,12 @@ def compute_stats(qas: List[Dict]) -> Dict:
         "by_discipline": dict(by_discipline),
         "by_span": dict(by_span),
         "by_status": dict(by_status),
+        # v3.1 additions
+        "by_tier": dict(by_tier),
+        "by_translation_task_type": dict(by_task_type),
+        "by_compound_coupling": dict(by_coupling),
+        "single_discipline_count": single_disc_count,
+        "by_failure_mode_tested": dict(by_failure_mode),
     }
 
 
@@ -324,14 +554,17 @@ def check_stratification(stats: Dict, full_set: bool, report: ValidationReport) 
             report.add(severity, "stratification-total", "",
                        f"total QAs {total}; target {TARGETS_FULL_SET['total']}.")
 
-    # By discipline (single-disc only; cross-disc tracked separately)
+    # By discipline (each QA counted once per discipline it touches; cross-disc
+    # QAs contribute to every discipline they include). Checked as a MINIMUM,
+    # not as a target band: per-discipline coverage above the target is fine,
+    # we only care that every discipline gets enough QAs.
     targets = TARGETS_FULL_SET["by_discipline_single"]
     tolerance = TARGETS_FULL_SET["tolerance_per_discipline"]
     for disc, target in targets.items():
         actual = stats["by_discipline"].get(disc, 0)
-        if full_set and abs(actual - target) > tolerance:
+        if full_set and actual < target - tolerance:
             report.add(severity, "stratification-discipline", "",
-                       f"{disc}: {actual} QAs; target {target} ± {tolerance}.")
+                       f"{disc}: {actual} QAs; need at least {target - tolerance}.")
 
     # By query type
     targets_qt = TARGETS_FULL_SET["by_query_type"]
@@ -352,6 +585,50 @@ def check_stratification(stats: Dict, full_set: bool, report: ValidationReport) 
             if abs(actual - target) > tolerance_diff:
                 report.add(severity, "stratification-difficulty", "",
                            f"difficulty {d}: {actual} QAs; target {target} ± {tolerance_diff}.")
+
+    # By cross-discipline span (1/2/3/4 — each QA falls in exactly one bucket,
+    # so the targets sum to 300).
+    if full_set:
+        span_targets = TARGETS_FULL_SET["by_cross_discipline_span"]
+        span_tol = TARGETS_FULL_SET.get("tolerance_per_span", 15)
+        for s, target in span_targets.items():
+            actual = stats["by_span"].get(s, 0)
+            if abs(actual - target) > span_tol:
+                report.add(severity, "stratification-span", "",
+                           f"span={s}: {actual} QAs; target {target} ± {span_tol}.")
+
+    # v3.1 stratification: tier, translation task type, failure mode, compound coupling
+    if full_set:
+        for tier, target in TARGETS_FULL_SET["by_tier"].items():
+            actual = stats.get("by_tier", {}).get(tier, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_tier"]
+            if abs(actual - target) > tol:
+                report.add(severity, "stratification-tier", "",
+                           f"tier {tier}: {actual} QAs; target {target} ± {tol}.")
+
+        for tt, target in TARGETS_FULL_SET["by_translation_task_type"].items():
+            actual = stats.get("by_translation_task_type", {}).get(tt, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_task_type"]
+            if abs(actual - target) > tol:
+                report.add(severity, "stratification-task-type", "",
+                           f"task type {tt}: {actual} QAs; target {target} ± {tol}.")
+
+        for fm, target in TARGETS_FULL_SET["by_failure_mode_tested"].items():
+            actual = stats.get("by_failure_mode_tested", {}).get(fm, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_failure_mode"]
+            if abs(actual - target) > tol:
+                report.add(severity, "stratification-failure-mode", "",
+                           f"failure mode {fm}: {actual} QAs; target {target} ± {tol}.")
+
+        # Compound coupling targets are pair-occurrence counts (a span-3 QA
+        # contributes to 3 different pairs), so this is checked as a MIN
+        # (pair-occurrences may legitimately exceed the per-pair target).
+        for coupling, target in TARGETS_FULL_SET["by_compound_coupling"].items():
+            actual = stats.get("by_compound_coupling", {}).get(coupling, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_coupling"]
+            if actual < target - tol:
+                report.add(severity, "stratification-coupling", "",
+                           f"coupling {coupling}: {actual} QAs; need at least {target - tol}.")
 
 
 # ============================================================================
@@ -391,11 +668,16 @@ def print_text_report(report: ValidationReport, stats: Dict) -> None:
           f"{color(str(err), '31')} errors, {color(str(warn), '33')} warnings.")
     print()
     print("Stats:")
-    print(f"  By query type:  {stats['by_query_type']}")
-    print(f"  By difficulty:  {stats['by_difficulty']}")
-    print(f"  By discipline:  {stats['by_discipline']}")
-    print(f"  By disc-span:   {stats['by_span']}")
-    print(f"  By status:      {stats['by_status']}")
+    print(f"  By query type:        {stats['by_query_type']}")
+    print(f"  By difficulty:        {stats['by_difficulty']}")
+    print(f"  By tier:              {stats.get('by_tier', {})}")
+    print(f"  By discipline:        {stats['by_discipline']}")
+    print(f"  By disc-span:         {stats['by_span']}")
+    print(f"  By status:            {stats['by_status']}")
+    print(f"  By task type:         {stats.get('by_translation_task_type', {})}")
+    print(f"  Single-disc count:    {stats.get('single_discipline_count', 0)}")
+    print(f"  By coupling:          {stats.get('by_compound_coupling', {})}")
+    print(f"  By failure mode:      {stats.get('by_failure_mode_tested', {})}")
 
 
 def print_json_report(report: ValidationReport, stats: Dict) -> None:

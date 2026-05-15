@@ -1,8 +1,10 @@
-# Eval QA design guidelines
+# Eval QA design guidelines (v3.1 — post-prior-art-revision)
 
-How to write a good v3 eval QA. Companion to `docs/eval_qa_schema.md` (the formal spec) and `eval_platform/calibration_qas/calibration_set_v1.md` (3 worked examples).
+How to write a good v3 eval QA. Companion to `docs/eval_qa_schema.md` (the formal spec), `docs/eval_dimensions_framework.md` (the new dimensional framework), `docs/prior_art/` (the EarthSE-derived analyses that motivated the revision), and `eval_platform/calibration_qas/calibration_set_v1.md` (3 worked examples).
 
 This document is the operational guide for QA authors — Marine, collaborators, Claude-drafted-then-edited. Read once before writing your first batch; refer back when stuck on a specific QA.
+
+**What changed in v3.1**: Four new dimensions to tag on every QA — `translation_task_types`, `tier`, `compound_coupling`, and `expected_output.failure_modes_tested`. The failure-mode taxonomy is the headline addition; tagging it on every QA at design time is what enables the methodology paper's publishable per-failure-mode analysis.
 
 ---
 
@@ -100,6 +102,66 @@ Each type has a distinct shape. Mixing types within a single QA is fine but the 
 **Example**: QA-CAL-03 (Central Valley dv/v as hydrology product).
 
 ---
+
+## 2.5. Translation task types (NEW in v3.1) — what cognitive operation is the chatbot doing?
+
+Independent of `query_type` (which describes the interaction shape), each QA has 1–3 `translation_task_types` describing the **cognitive operation** the chatbot must perform:
+
+- **concept-mapping** — find the functional analogue of a concept in another discipline.
+- **method-translation** — operationalize a method's equivalent in another discipline.
+- **sensor-data-equivalence** — name the equivalent instrument or data source.
+- **data-availability-assessment** — what datasets in B are accessible for a question from A?
+- **terminology-bridging** — translate jargon between disciplines (closely linked to vocabulary-disambiguation query type).
+- **limitation-translation** — what's the analogous limitation in B for a method's limitation in A?
+- **parameter-threshold-equivalence** — what's the equivalent calibration / parameter / threshold in B?
+
+**Most paper-interpretation QAs** involve 2–3 task types (concept-mapping + method-translation + limitation-translation is a common combo).
+
+**Single-discipline QAs** often have one task type (concept-mapping with no cross-discipline target). A refusal-test on vocabulary collision is purely terminology-bridging.
+
+## 2.6. Tier (NEW in v3.1) — what KIND of cognitive demand?
+
+Bronze / silver / gold, distinct from numeric difficulty:
+
+- **bronze** — simple, within-group or straightforward cross-discipline. The model should mostly get this right. Used to anchor floor performance.
+- **silver** — cross-group with modest complexity. The model should get this with effort. Used to differentiate models.
+- **gold** — advanced methodological synthesis, often multi-step reasoning. The model should struggle. Used to test ceiling and to surface failure-mode differences.
+
+Approximate mapping: bronze ↔ difficulty 1–2; silver ↔ difficulty 3–4; gold ↔ difficulty 4–5. But difficulty captures within-tier variation: a moderately-hard bronze (difficulty 2) and an easy silver (difficulty 3) are testing different things even though their numeric distance is small.
+
+## 2.7. Compound coupling (NEW in v3.1) — explicit pair tagging
+
+For cross-discipline QAs, the `compound_coupling` field lists discipline-pair couplings the translation crosses, alphabetized within each pair (canonical form). Example: `["geotechnical_engineering-seismology", "hydrology-seismology"]`.
+
+- Single-discipline QAs: empty list `[]`.
+- A QA that spans seismology + hydrology + geotech has THREE couplings (each pair counted): `["geotechnical_engineering-hydrology", "geotechnical_engineering-seismology", "hydrology-seismology"]`.
+
+Stratification target: ~20–30 QAs per major coupling (see `docs/eval_dimensions_framework.md` §3). Plus 90 single-discipline QAs.
+
+## 2.8. Failure modes tested (NEW in v3.1) — the headline dimension
+
+Per-QA tagging of which of the 7 failure modes the QA probes. This is the publishable contribution: at analysis time, we compute per-failure-mode accuracy for base model vs. augmented model, showing *where* domain calibration helps and where it doesn't.
+
+The 7 modes:
+
+- **hallucinated-analogue** — chatbot invents a sensor/method/concept that doesn't exist.
+- **concept-confusion** — misreads the functional role of the source concept.
+- **domain-ignorance** — proposes something standard but not applicable in this context.
+- **implausible-calibration** — right concept, wrong parameters/scale/timescale.
+- **missing-constraint** — ignores a key target-domain constraint.
+- **false-equivalence** — oversimplifies a complex analogy.
+- **terminology-failure** — correct concept, wrong target-domain jargon.
+
+**How to tag a QA with failure modes** (1–4 modes per QA, ordered primary→secondary):
+
+- Ask: "If the chatbot were going to *fail* on this question, what category of failure would it be?"
+- A refusal-test QA on the Q-Q vocabulary collision probes: hallucinated-analogue (it might invent a paper), false-equivalence (it might assert a relation), terminology-failure (it might pick the wrong meaning).
+- A paper-interpretation QA on Boulanger & Idriss probes: missing-constraint (it might miss the Vs1 upper-30-m limitation), implausible-calibration (it might quote wrong CSR values), false-equivalence (it might conflate dv/v with pre-event triggering).
+- A vocabulary-disambiguation QA on "permeability" probes: terminology-failure, concept-confusion.
+
+**Don't over-tag**: 1–3 modes is typical. If you tag 5+, you're probably not focusing the test.
+
+**Coverage target**: each failure mode should appear in 30–60 QAs across the full eval set.
 
 ## 3. Difficulty calibration
 
@@ -244,18 +306,22 @@ Migration is iterative. Don't migrate all 60 in one pass; pick the strongest 20�
 
 ---
 
-## 11. Quick checklist for the QA author
+## 11. Quick checklist for the QA author (v3.1)
 
 Before saving a new QA:
 
 - [ ] `id` follows pattern `QA-EVAL-###` (or `QA-CAL-###` for calibration, `QA-HELDOUT-###` for held-out).
 - [ ] `primary_disciplines` is correct (1 for single-disc, 2+ for cross-disc).
-- [ ] `query_type` matches the QA's shape.
-- [ ] `difficulty` is calibrated to the rubric.
+- [ ] `query_type` matches the QA's interaction shape.
+- [ ] **`translation_task_types`** lists 1–3 cognitive translation operations (NEW v3.1).
+- [ ] **`tier`** is `bronze` / `silver` / `gold` (NEW v3.1; aligned with difficulty).
+- [ ] **`compound_coupling`** lists discipline pairs in alphabetical-within-pair canonical form (NEW v3.1; empty for single-disc QAs).
+- [ ] `difficulty` is calibrated to the rubric in Section 3.
 - [ ] `prompt` reads like a real researcher's question.
 - [ ] `input_document` is `type: none` unless you have a real document to attach.
 - [ ] `expected_output.*_matches` lists real, defined v3 card IDs in order of relevance.
 - [ ] `expected_output.user_specific_response_themes` has 3–6 specific themes.
 - [ ] `expected_output.must_not_say` populated for refusal-test QAs; empty otherwise.
+- [ ] **`expected_output.failure_modes_tested`** lists 1–4 failure modes this QA probes (NEW v3.1; the headline field — see Section 2.8).
 - [ ] `quality_notes.author` attributes correctly.
 - [ ] `status` set to `draft` (the validator will not let `approved` slip through without review).

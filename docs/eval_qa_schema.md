@@ -1,6 +1,6 @@
-# Eval QA schema — v3
+# Eval QA schema — v3.1
 
-**Status**: v0.1, drafted as the Phase 6 deliverable. Subject to a small revision after the first batch of QAs is reviewed.
+**Status**: v3.1, revised post-prior-art-review to add four dimensions essential for the publishable failure-mode analysis (see `docs/eval_dimensions_framework.md` for the rationale and `docs/prior_art/` for the underlying analyses). v3.0 → v3.1 is *additive*; existing 21 seed QAs are being migrated.
 
 **Companion to**: `docs/phase4_output_schema.md` (the chatbot's output schema). Where the Phase 4 schema defines what the chatbot *produces*, this QA schema defines what we *expect* the chatbot to produce for a given input.
 
@@ -45,11 +45,53 @@ class Discipline(str, Enum):
 
 
 class QueryType(str, Enum):
+    """Interaction shape — what the user is asking for."""
     paper_interpretation = "paper-interpretation"
     integration = "integration"
     vocabulary_disambiguation = "vocabulary-disambiguation"
     refusal_test = "refusal-test"
     joint_observation = "joint-observation"
+
+
+class TranslationTaskType(str, Enum):
+    """Cognitive translation operation — what the chatbot must do.
+
+    Adapted from prior art (EarthSE-derived; see docs/eval_dimensions_framework.md).
+    A single QA can probe 1-3 task types; they're orthogonal to query_type.
+    """
+    concept_mapping = "concept-mapping"
+    method_translation = "method-translation"
+    sensor_data_equivalence = "sensor-data-equivalence"
+    data_availability_assessment = "data-availability-assessment"
+    terminology_bridging = "terminology-bridging"
+    limitation_translation = "limitation-translation"
+    parameter_threshold_equivalence = "parameter-threshold-equivalence"
+
+
+class Tier(str, Enum):
+    """Task-complexity-anchored tier (EarthSE Bronze/Silver/Gold model).
+
+    Distinct from numeric difficulty: tier captures the KIND of cognitive demand;
+    difficulty captures fine-grained variation within tier.
+    """
+    bronze = "bronze"     # simple within- or simple-pair translations; difficulty ~1-2
+    silver = "silver"     # cross-group with modest complexity; difficulty ~3-4
+    gold = "gold"         # advanced methodological synthesis; difficulty ~4-5
+
+
+class FailureMode(str, Enum):
+    """Failure-mode taxonomy — what the QA specifically probes.
+
+    Per-QA tagging enables per-failure-mode performance analysis
+    (the publishable contribution per docs/prior_art/REVISED_novelty_assessment).
+    """
+    hallucinated_analogue = "hallucinated-analogue"      # invents sensor/method/concept
+    concept_confusion = "concept-confusion"               # misreads functional role of source concept
+    domain_ignorance = "domain-ignorance"                 # proposes target-side standard that doesn't apply here
+    implausible_calibration = "implausible-calibration"   # right concept, wrong parameters/scale/timescale
+    missing_constraint = "missing-constraint"             # ignores a key target-domain constraint
+    false_equivalence = "false-equivalence"               # oversimplifies a complex analogy
+    terminology_failure = "terminology-failure"           # correct concept, wrong target-domain jargon
 
 
 class DocumentType(str, Enum):
@@ -124,6 +166,20 @@ class ExpectedOutput(BaseModel):
         )
     )
 
+    failure_modes_tested: List[FailureMode] = Field(
+        ...,
+        min_length=1,
+        max_length=4,
+        description=(
+            "The failure-mode taxonomy entries this QA specifically probes. "
+            "Typically 1-4 modes per QA. Used at analysis time to compute "
+            "per-failure-mode performance (base model vs. augmented). "
+            "This is THE field that enables the methodology paper's headline "
+            "publishable contribution: 'augmentation targets these modes (+23%) "
+            "but not these (+1%).' See docs/eval_dimensions_framework.md §4."
+        )
+    )
+
     user_specific_response_themes: List[str] = Field(
         default_factory=list,
         description=(
@@ -178,11 +234,47 @@ class EvalQA(BaseModel):
         max_length=4,
         description="Disciplines the QA touches. 1 for single-discipline QAs; 2-4 for cross-discipline."
     )
-    query_type: QueryType
+    query_type: QueryType = Field(
+        ...,
+        description="Interaction shape — what the user is asking for."
+    )
+    translation_task_types: List[TranslationTaskType] = Field(
+        ...,
+        min_length=1,
+        max_length=3,
+        description=(
+            "Cognitive translation operations the chatbot must perform. "
+            "Orthogonal to query_type. 1-3 per QA, ordered primary -> secondary. "
+            "Single-discipline QAs that aren't really 'translating' (e.g., basic refusal-test) "
+            "should use concept-mapping or terminology-bridging as the closest fit."
+        )
+    )
+    tier: Tier = Field(
+        ...,
+        description=(
+            "Task-complexity-anchored tier. Bronze=simple/within-group; "
+            "silver=cross-group modest; gold=advanced methodological synthesis. "
+            "Distinct from numeric difficulty: tier = kind of demand; difficulty = within-tier variation."
+        )
+    )
     difficulty: int = Field(
         ...,
         ge=1, le=5,
         description="1=trivial, 3=median graduate-student question, 5=research-frontier integration."
+    )
+    compound_coupling: List[str] = Field(
+        ...,
+        description=(
+            "Discipline-pair couplings the translation crosses, e.g., "
+            "['geomorphology-hydrology', 'hydrology-seismology']. "
+            "REQUIRED on every QA: single-discipline QAs must supply an explicit "
+            "empty list `[]` (omitting the field is a validation error). "
+            "Sorted alphabetically within each pair as the canonical form "
+            "('hydrology-seismology' not 'seismology-hydrology'). "
+            "For an N-discipline QA, this must contain exactly C(N,2) distinct "
+            "canonical pairs covering all pairs of `primary_disciplines`. "
+            "Used for per-coupling stratification and analysis."
+        )
     )
 
     # --- Inputs to the chatbot ---
@@ -202,19 +294,19 @@ class EvalQA(BaseModel):
 
 ---
 
-## 3. Per-section scoring map
+## 3. Per-section scoring map (with failure-mode back-out)
 
-Each section of the chatbot's response is scored against the corresponding `expected_output` field, then mapped to one or more rubric criteria from `eval_platform/`.
+Each section of the chatbot's response is scored against the corresponding `expected_output` field, then mapped to one or more rubric criteria from `eval_platform/`. **New in v3.1**: each rubric criterion has a primary failure-mode association, so per-criterion scores aggregate into per-failure-mode performance without changing the reviewer interface.
 
-| Chatbot section (Phase 4 output) | Expected-output field | Rubric criteria scored |
-|---|---|---|
-| `concept_matches` | `concept_matches` | Technical accuracy, Citation discipline, Vocabulary precision |
-| `method_matches` | `method_matches` | Technical accuracy, Citation discipline |
-| `phenomenon_matches` | `phenomenon_matches` | Technical accuracy, Citation discipline |
-| `translation_matches` | `translation_matches` | Cross-discipline integration (the criterion this section is for) |
-| `vocabulary_collisions_flagged` | `vocabulary_collisions_flagged` | Vocabulary precision |
-| `refusals_or_caveats` | `refusals_or_caveats_expected` | Refusal correctness |
-| `user_specific_response` | `user_specific_response_themes`, `must_not_say` | Completeness, Presentation, Overall usefulness |
+| Chatbot section (Phase 4 output) | Expected-output field | Rubric criteria scored | Failure modes primarily tested |
+|---|---|---|---|
+| `concept_matches` | `concept_matches` | S1 Tech accuracy, S2 Citation, S3 Vocab precision | concept-confusion, implausible-calibration |
+| `method_matches` | `method_matches` | S1 Tech accuracy, S2 Citation | concept-confusion, hallucinated-analogue |
+| `phenomenon_matches` | `phenomenon_matches` | S1 Tech accuracy, S2 Citation | domain-ignorance |
+| `translation_matches` | `translation_matches` | S4 Cross-disc integration | false-equivalence, missing-constraint |
+| `vocabulary_collisions_flagged` | `vocabulary_collisions_flagged` | S3 Vocab precision | terminology-failure |
+| `refusals_or_caveats` | `refusals_or_caveats_expected`, `failure_modes_tested` | S5 Refusal correctness | hallucinated-analogue, false-equivalence |
+| `user_specific_response` | `user_specific_response_themes`, `must_not_say` | S6 Completeness, S7 Presentation, S8 Overall | domain-ignorance, missing-constraint |
 
 Scoring rules:
 
@@ -227,11 +319,54 @@ The reviewer-facing spreadsheet from Phase 7 prefills the expected output as a c
 
 ---
 
-## 4. Stratification targets
+## 4. Stratification targets (v3.1 — multi-dimensional)
 
-The full Phase 6 eval set (~300 QAs) should approximately match these distributions. The validator (`pipeline/validate_eval_set.py`) checks against these.
+The full Phase 6 eval set (~300 QAs) should approximately match the distributions below. The validator (`pipeline/validate_eval_set.py`) checks against these.
 
-### Per-discipline coverage (single-discipline QAs)
+**Important**: each QA contributes to multiple cells across multiple dimensions (e.g., one silver-tier concept-mapping QA on seismic-hydro coupling probing `missing-constraint` and `hallucinated-analogue` contributes to four matrices: tier, translation_task_types, compound_coupling, and failure_modes_tested). So total target counts add up to MORE than 300 when summed across all dimensions.
+
+### By tier
+
+| Tier | Target count | % |
+|---|---|---|
+| Bronze | 150 | 50% |
+| Silver | 120 | 40% |
+| Gold | 30 | 10% |
+| (total) | **300** | |
+
+### By translation task type (overlap allowed; 1–3 per QA)
+
+| Task type | Target count |
+|---|---|
+| concept-mapping | 80 |
+| method-translation | 70 |
+| sensor-data-equivalence | 50 |
+| data-availability-assessment | 30 |
+| terminology-bridging | 50 |
+| limitation-translation | 50 |
+| parameter-threshold-equivalence | 35 |
+
+(Counts overlap since most QAs have 1–3 task types.)
+
+### By failure mode tested (overlap allowed; 1–4 per QA)
+
+| Failure mode | Target count | Why this many |
+|---|---|---|
+| missing-constraint | 60 | Largest expected augmentation lift; most cells for analysis |
+| domain-ignorance | 55 | Second-largest expected lift |
+| concept-confusion | 50 | Base-rate prevalent |
+| false-equivalence | 50 | Refusal-pattern fuel |
+| implausible-calibration | 40 | Quantitative-test focus |
+| terminology-failure | 40 | Vocabulary collisions |
+| hallucinated-analogue | 30 | Augmentation expected NOT to help; smaller cell but still need power |
+
+### By compound coupling (cross-discipline QAs only)
+
+See `docs/eval_dimensions_framework.md` §3 for the full coupling matrix.
+
+
+
+### Per-discipline coverage (count of QAs *touching* each discipline; cross-discipline QAs contribute to multiple)
 
 | Discipline | Target count |
 |---|---|
@@ -243,20 +378,20 @@ The full Phase 6 eval set (~300 QAs) should approximately match these distributi
 | Ecology | 25 |
 | Agricultural sciences | 25 |
 | Near-surface geophysics | 25 |
-| (subtotal, single-discipline) | **200** |
 
-Tolerance: ±5 per discipline.
+Tolerance: ±5 per discipline. (Each discipline must be touched by at least this many QAs; cross-discipline QAs count toward every discipline they include, so per-discipline totals overlap and the column does not sum to the 300-QA total.)
 
-### Cross-discipline coverage
+### Cross-discipline coverage (count of QAs at each span; sums to 300)
 
 | Discipline span | Target count |
 |---|---|
-| 2-discipline | 70 |
-| 3-discipline | 20 |
-| 4+ discipline | 10 |
-| (subtotal, cross-discipline) | **100** |
+| 1 (single-discipline) | 90 |
+| 2 | 180 |
+| 3 | 20 |
+| 4 | 10 |
+| **Total** | **300** |
 
-Tolerance: ±10 across the cross-discipline subset.
+Tolerance: ±15 for span-1 and span-2; ±5 for span-3 and span-4.
 
 ### Query-type distribution
 

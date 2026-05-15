@@ -119,7 +119,7 @@ def build_instructions_tab(ws, total_qas: int, stats: Dict) -> None:
         "",
         "How this sheet works",
         "",
-        "Each row in the 'QAs' tab is one QA. Columns A-N describe the QA. Columns starting with 'S1...S8' are score inputs (1-5, leave blank if you can't judge).",
+        "Each row in the 'QAs' tab is one QA. Columns A-U describe the QA (A-H are the v3.1 classification: ID, status, tier, disciplines, query type, translation task types, compound coupling, difficulty; I-L are the prompt + document; M-U are the expected output incl. failure modes tested). Columns V-AC are the 'S1...S8' score inputs (1-5, leave blank if you can't judge), followed by mean / comment / confidence / status (AD-AJ).",
         "Blue text = your input. Type scores and comments here.",
         "Black text = formula (don't edit).",
         "Yellow cells = mandatory comment if score is ≤2 or ≥5.",
@@ -147,12 +147,15 @@ def build_instructions_tab(ws, total_qas: int, stats: Dict) -> None:
 
 def build_qas_tab(ws, qas: List[Dict]) -> None:
     """The main scoring tab — one row per QA."""
-    # Column layout
+    # Column layout (v3.1 — adds tier, translation_task_types, compound_coupling, failure_modes_tested)
     columns = [
         ("QA_ID", 14),
         ("Status", 12),
+        ("Tier", 9),                    # v3.1
         ("Disciplines", 22),
         ("Query type", 18),
+        ("Translation task types", 28), # v3.1
+        ("Compound coupling", 28),      # v3.1
         ("Difficulty", 10),
         ("Prompt", 50),
         ("Doc type", 10),
@@ -165,6 +168,7 @@ def build_qas_tab(ws, qas: List[Dict]) -> None:
         ("Expected translation_matches", 28),
         ("Expected vocab collisions", 22),
         ("Expected refusals", 24),
+        ("Failure modes tested", 28),   # v3.1
         ("Expected response themes", 60),
         ("Must not say", 40),
         # Score inputs (blue)
@@ -191,45 +195,50 @@ def build_qas_tab(ws, qas: List[Dict]) -> None:
         ws.column_dimensions[get_column_letter(idx)].width = w
 
     ws.row_dimensions[1].height = 46
-    ws.freeze_panes = "F2"  # freeze through column E (so prompt scrolls with scores)
+    ws.freeze_panes = "I2"  # freeze through column H (so prompt scrolls with scores)
 
-    SCORE_COLS = list(range(18, 26))  # S1..S8
-    MEAN_COL = 26
-    OVERALL_COMMENT = 27
-    CONFIDENCE = 28
-    SKILL_FILES = 29
-    FLAG = 30
-    TIME_MIN = 31
-    STATUS = 32
+    # New column index layout (v3.1; +4 columns vs. v3.0)
+    SCORE_COLS = list(range(22, 30))  # S1..S8 — shifted by +4
+    MEAN_COL = 30
+    OVERALL_COMMENT = 31
+    CONFIDENCE = 32
+    SKILL_FILES = 33
+    FLAG = 34
+    TIME_MIN = 35
+    STATUS = 36
 
     # Data rows
     for i, qa in enumerate(qas):
         r = i + 2
-        ws.row_dimensions[r].height = 200
+        ws.row_dimensions[r].height = 220
 
         text_cell(ws.cell(row=r, column=1), qa["id"], bold=True)
         text_cell(ws.cell(row=r, column=2), qa["status"])
-        text_cell(ws.cell(row=r, column=3), ", ".join(qa["primary_disciplines"]))
-        text_cell(ws.cell(row=r, column=4), qa["query_type"])
-        text_cell(ws.cell(row=r, column=5), qa["difficulty"])
-        text_cell(ws.cell(row=r, column=6), qa["prompt"])
+        text_cell(ws.cell(row=r, column=3), qa.get("tier", ""), bold=True)
+        text_cell(ws.cell(row=r, column=4), ", ".join(qa["primary_disciplines"]))
+        text_cell(ws.cell(row=r, column=5), qa["query_type"])
+        text_cell(ws.cell(row=r, column=6), "\n".join(qa.get("translation_task_types", [])))
+        text_cell(ws.cell(row=r, column=7), "\n".join(qa.get("compound_coupling", [])))
+        text_cell(ws.cell(row=r, column=8), qa["difficulty"])
+        text_cell(ws.cell(row=r, column=9), qa["prompt"])
         doc = qa.get("input_document", {})
-        text_cell(ws.cell(row=r, column=7), doc.get("type", "none"))
-        text_cell(ws.cell(row=r, column=8), doc.get("source") or "")
-        text_cell(ws.cell(row=r, column=9), doc.get("title") or "")
+        text_cell(ws.cell(row=r, column=10), doc.get("type", "none"))
+        text_cell(ws.cell(row=r, column=11), doc.get("source") or "")
+        text_cell(ws.cell(row=r, column=12), doc.get("title") or "")
 
         exp = qa.get("expected_output", {})
-        text_cell(ws.cell(row=r, column=10), "\n".join(exp.get("concept_matches", [])))
-        text_cell(ws.cell(row=r, column=11), "\n".join(exp.get("method_matches", [])))
-        text_cell(ws.cell(row=r, column=12), "\n".join(exp.get("phenomenon_matches", [])))
-        text_cell(ws.cell(row=r, column=13), "\n".join(exp.get("translation_matches", [])))
-        text_cell(ws.cell(row=r, column=14), ", ".join(exp.get("vocabulary_collisions_flagged", [])))
-        text_cell(ws.cell(row=r, column=15), ", ".join(exp.get("refusals_or_caveats_expected", [])))
+        text_cell(ws.cell(row=r, column=13), "\n".join(exp.get("concept_matches", [])))
+        text_cell(ws.cell(row=r, column=14), "\n".join(exp.get("method_matches", [])))
+        text_cell(ws.cell(row=r, column=15), "\n".join(exp.get("phenomenon_matches", [])))
+        text_cell(ws.cell(row=r, column=16), "\n".join(exp.get("translation_matches", [])))
+        text_cell(ws.cell(row=r, column=17), ", ".join(exp.get("vocabulary_collisions_flagged", [])))
+        text_cell(ws.cell(row=r, column=18), ", ".join(exp.get("refusals_or_caveats_expected", [])))
+        text_cell(ws.cell(row=r, column=19), "\n".join(exp.get("failure_modes_tested", [])))
         themes = exp.get("user_specific_response_themes", [])
-        text_cell(ws.cell(row=r, column=16),
+        text_cell(ws.cell(row=r, column=20),
                   "\n".join(f"• {t}" for t in themes))
         must_not = exp.get("must_not_say", [])
-        text_cell(ws.cell(row=r, column=17),
+        text_cell(ws.cell(row=r, column=21),
                   "\n".join(f"✗ {t}" for t in must_not))
 
         # Score input cells (blue)
@@ -362,15 +371,17 @@ def build_progress_tab(ws, total_qas: int) -> None:
     ws["A1"].font = Font(name=ARIAL, size=16, bold=True, color=ACCENT)
     ws.merge_cells("A1:D1")
 
+    # v3.1: column positions shifted by +4 due to new dimension columns.
+    # Status col 36 → AJ; Mean col 30 → AD; Time col 35 → AI; Flag col 34 → AH.
     items = [
         ("Total QAs", f"=COUNTA(QAs!A2:A{total_qas+1})"),
-        ("Complete", f"=COUNTIF(QAs!AF2:AF{total_qas+1},\"COMPLETE\")"),
-        ("In progress", f"=COUNTIF(QAs!AF2:AF{total_qas+1},\"IN PROGRESS\")"),
-        ("Not started", f"=COUNTIF(QAs!AF2:AF{total_qas+1},\"NOT STARTED\")"),
+        ("Complete", f"=COUNTIF(QAs!AJ2:AJ{total_qas+1},\"COMPLETE\")"),
+        ("In progress", f"=COUNTIF(QAs!AJ2:AJ{total_qas+1},\"IN PROGRESS\")"),
+        ("Not started", f"=COUNTIF(QAs!AJ2:AJ{total_qas+1},\"NOT STARTED\")"),
         ("Percent complete", f"=IFERROR(B3/B2,0)"),
-        ("Mean score across complete", f"=IFERROR(AVERAGEIF(QAs!AF2:AF{total_qas+1},\"COMPLETE\",QAs!Z2:Z{total_qas+1}),\"\")"),
-        ("Mean time per QA (min)", f"=IFERROR(AVERAGEIF(QAs!AF2:AF{total_qas+1},\"COMPLETE\",QAs!AE2:AE{total_qas+1}),\"\")"),
-        ("Flagged for discussion", f"=COUNTIF(QAs!AD2:AD{total_qas+1},\"Y\")"),
+        ("Mean score across complete", f"=IFERROR(AVERAGEIF(QAs!AJ2:AJ{total_qas+1},\"COMPLETE\",QAs!AD2:AD{total_qas+1}),\"\")"),
+        ("Mean time per QA (min)", f"=IFERROR(AVERAGEIF(QAs!AJ2:AJ{total_qas+1},\"COMPLETE\",QAs!AI2:AI{total_qas+1}),\"\")"),
+        ("Flagged for discussion", f"=COUNTIF(QAs!AH2:AH{total_qas+1},\"Y\")"),
     ]
     for i, (label, formula) in enumerate(items):
         r = 2 + i
