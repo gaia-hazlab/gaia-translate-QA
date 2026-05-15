@@ -164,7 +164,7 @@ All 21 seed QAs in `pipeline/seed_qa_dataset.py` need to have the four new field
 
 ## Open questions for the lock-meeting
 
-1. Should `compound_coupling` capture *ordered* pairs (e.g., `"seismology→hydrology"` directionality matters for translation direction) or *unordered*? Recommendation: ordered for new QAs (translation IS directional); unordered fallback for already-symmetric integration QAs.
+1. Should `compound_coupling` capture *ordered* pairs (e.g., `"seismology→hydrology"` directionality matters for translation direction) or *unordered*? **Resolved: unordered, alphabetized canonical form** (`"hydrology-seismology"`). The v3.1 schema and validator both enforce this — every QA must list its C(N,2) pairs in alphabetized form. Directionality can be revisited in a future schema version (v3.2+) if per-direction asymmetry turns out to be a useful analysis cut; for now `query_type` + `translation_task_types` carry the directional information.
 2. Should the failure-mode list be considered exhaustive, or should we accommodate new modes as the eval reveals them? Recommendation: lock v3.1 with the 7 listed, then update to v3.2 if Phase 7 reveals a new pattern.
 3. For the gold tier, do we adopt the EarthSE multi-turn-dialogue format (Turn 1 = problem, Turn 2 = critique, Turn 3 = refinement)? Recommendation: yes, but only after the single-shot Phase 4 tool is stable; multi-turn is a Phase 5-and-onward extension.
 

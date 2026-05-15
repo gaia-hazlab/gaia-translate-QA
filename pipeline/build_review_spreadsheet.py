@@ -119,7 +119,7 @@ def build_instructions_tab(ws, total_qas: int, stats: Dict) -> None:
         "",
         "How this sheet works",
         "",
-        "Each row in the 'QAs' tab is one QA. Columns A-N describe the QA. Columns starting with 'S1...S8' are score inputs (1-5, leave blank if you can't judge).",
+        "Each row in the 'QAs' tab is one QA. Columns A-U describe the QA (A-H are the v3.1 classification: ID, status, tier, disciplines, query type, translation task types, compound coupling, difficulty; I-L are the prompt + document; M-U are the expected output incl. failure modes tested). Columns V-AC are the 'S1...S8' score inputs (1-5, leave blank if you can't judge), followed by mean / comment / confidence / status (AD-AJ).",
         "Blue text = your input. Type scores and comments here.",
         "Black text = formula (don't edit).",
         "Yellow cells = mandatory comment if score is ≤2 or ≥5.",

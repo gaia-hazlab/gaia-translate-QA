@@ -263,14 +263,16 @@ class EvalQA(BaseModel):
         description="1=trivial, 3=median graduate-student question, 5=research-frontier integration."
     )
     compound_coupling: List[str] = Field(
-        default_factory=list,
+        ...,
         description=(
             "Discipline-pair couplings the translation crosses, e.g., "
             "['geomorphology-hydrology', 'hydrology-seismology']. "
-            "Empty list for single-discipline QAs. Sorted alphabetically within "
-            "each pair as the canonical form ('hydrology-seismology' not 'seismology-hydrology'). "
-            "For an N-discipline QA, this must contain exactly C(N,2) canonical pairs "
-            "that cover all pairs of `primary_disciplines`. "
+            "REQUIRED on every QA: single-discipline QAs must supply an explicit "
+            "empty list `[]` (omitting the field is a validation error). "
+            "Sorted alphabetically within each pair as the canonical form "
+            "('hydrology-seismology' not 'seismology-hydrology'). "
+            "For an N-discipline QA, this must contain exactly C(N,2) distinct "
+            "canonical pairs covering all pairs of `primary_disciplines`. "
             "Used for per-coupling stratification and analysis."
         )
     )

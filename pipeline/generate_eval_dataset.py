@@ -59,6 +59,7 @@ import textwrap
 import uuid
 from collections import Counter
 from datetime import datetime
+from itertools import combinations
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -130,6 +131,9 @@ TARGETS = {
         "geotechnical_engineering-hydrology": 20,
     },
     "single_discipline": 90,
+    # Cross-discipline-span QA-count targets (mirrors validate_eval_set.py
+    # TARGETS_FULL_SET["by_cross_discipline_span"], plus single-disc).
+    "span": {1: 90, 2: 70, 3: 20, 4: 10},
 }
 
 # Failure modes that are meaningful for refusal-test prompts. The refusal-test
@@ -511,41 +515,72 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
             TARGETS["failure_mode"], actual_failure_mode, REFUSAL_RELEVANT_FAILURE_MODES
         )
 
-    # Coupling: decide single- vs. multi-discipline by comparing the largest
-    # remaining coupling deficit against the single-discipline deficit. If a
-    # coupling is more under-target than single-discipline coverage, pick a
-    # canonical pair that includes gap_disc (preferred) — otherwise the most-
-    # undercovered pair overall.
-    disciplines = [gap_disc]
-    coupling = None
-    if TARGETS.get("compound_coupling"):
-        single_deficit = TARGETS["single_discipline"] - single_disc_count
+    # Span: pick the cross-discipline span (1/2/3/4) with the largest deficit
+    # against TARGETS["span"]. The seed/eval-set distribution targets 90 single-
+    # discipline QAs, 70 two-discipline, 20 three-discipline, and 10 four-
+    # discipline, so the auto loop has to be able to emit 3- and 4-discipline
+    # QAs to fill those span targets.
+    span_actual = Counter(
+        len(qa.get("primary_disciplines", [])) for qa in existing_qas
+    )
+    span_deficits = {
+        s: TARGETS["span"][s] - span_actual.get(s, 0) for s in TARGETS["span"]
+    }
+    target_span = max(span_deficits, key=span_deficits.get)
+
+    if target_span == 1:
+        disciplines = [gap_disc]
+        coupling_pairs: List[str] = []
+    elif target_span == 2:
+        # Pick the most-undercovered coupling, preferring one that includes
+        # gap_disc only when that candidate's own deficit also beats fallback.
         worst_coupling = max(
             TARGETS["compound_coupling"],
             key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
         )
-        worst_coupling_deficit = (
+        worst_deficit = (
             TARGETS["compound_coupling"][worst_coupling]
             - actual_coupling.get(worst_coupling, 0)
         )
-        if worst_coupling_deficit > single_deficit:
-            # Prefer a coupling that includes gap_disc; otherwise take the worst.
-            candidates_with_gap_disc = [
-                c for c in TARGETS["compound_coupling"] if gap_disc in c.split("-", 1)
-            ]
-            if candidates_with_gap_disc:
-                coupling = max(
-                    candidates_with_gap_disc,
-                    key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
-                )
-            else:
-                coupling = worst_coupling
-            d1, d2 = coupling.split("-", 1)
-            disciplines = [d1, d2]
+        candidates_with_gap_disc = [
+            c for c in TARGETS["compound_coupling"] if gap_disc in c.split("-", 1)
+        ]
+        if candidates_with_gap_disc:
+            preferred = max(
+                candidates_with_gap_disc,
+                key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
+            )
+            preferred_deficit = (
+                TARGETS["compound_coupling"][preferred]
+                - actual_coupling.get(preferred, 0)
+            )
+            # Only stick with the gap_disc-containing pair if it actually has
+            # remaining deficit — otherwise picking it would overfill a pair
+            # that's already at or above target just to include gap_disc.
+            coupling = preferred if preferred_deficit > 0 else worst_coupling
+        else:
+            coupling = worst_coupling
+        d1, d2 = coupling.split("-", 1)
+        disciplines = [d1, d2]
+        coupling_pairs = [coupling]
+    else:
+        # 3- or 4-discipline QA: pick the top-N most-undercovered disciplines
+        # (including gap_disc if it's not already in the top), then emit every
+        # canonical C(N,2) pair.
+        ranked = sorted(
+            TARGETS["discipline"],
+            key=lambda d: TARGETS["discipline"][d] - actual_disc.get(d, 0),
+            reverse=True,
+        )
+        disciplines = ranked[:target_span]
+        if gap_disc not in disciplines:
+            disciplines[-1] = gap_disc
+        disciplines = sorted(disciplines)
+        coupling_pairs = [f"{a}-{b}" for a, b in combinations(disciplines, 2)]
 
     return {
         "disciplines": disciplines,
-        "compound_coupling": [coupling] if coupling else [],
+        "compound_coupling": coupling_pairs,
         "query_type": gap_qt,
         "difficulty": gap_diff,
         "tier": gap_tier,
@@ -604,6 +639,32 @@ def report_coverage(existing_qas: List[Dict]) -> str:
     for k, target in TARGETS["failure_mode"].items():
         actual = actual_fm.get(k, 0)
         lines.append(f"    {k:30s} {actual:3d} / {target}  (gap {target - actual})")
+
+    actual_coupling: Counter = Counter()
+    single_disc = 0
+    for qa in existing_qas:
+        cc = qa.get("compound_coupling", [])
+        if not cc:
+            single_disc += 1
+        else:
+            for c in cc:
+                actual_coupling[c] += 1
+    lines.append("  By compound coupling:")
+    for k, target in TARGETS["compound_coupling"].items():
+        actual = actual_coupling.get(k, 0)
+        lines.append(f"    {k:40s} {actual:3d} / {target}  (gap {target - actual})")
+    single_target = TARGETS["single_discipline"]
+    lines.append(f"  Single-discipline (no coupling):    {single_disc:3d} / "
+                 f"{single_target}  (gap {single_target - single_disc})")
+
+    span_actual = Counter(
+        len(qa.get("primary_disciplines", [])) for qa in existing_qas
+    )
+    lines.append("  By cross-discipline span:")
+    for s, target in TARGETS["span"].items():
+        actual = span_actual.get(s, 0)
+        lines.append(f"    span={s}                          {actual:3d} / {target}  "
+                     f"(gap {target - actual})")
 
     return "\n".join(lines)
 

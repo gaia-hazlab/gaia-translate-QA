@@ -231,7 +231,7 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
         report.add("error", "query-type", qa_id,
                    f"query_type '{qt}' must be one of {VALID_QUERY_TYPES}.")
 
-    # translation_task_types (v3.1)
+    # translation_task_types (v3.1) — required, 1-3 distinct entries
     ttt = qa.get("translation_task_types", [])
     if not isinstance(ttt, list) or not ttt:
         report.add("error", "translation-task-types", qa_id,
@@ -239,6 +239,9 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
     elif not 1 <= len(ttt) <= 3:
         report.add("error", "translation-task-types", qa_id,
                    f"translation_task_types must have 1-3 entries; got {len(ttt)}.")
+    elif len(set(ttt)) != len(ttt):
+        report.add("error", "translation-task-types", qa_id,
+                   f"translation_task_types contains duplicates: {ttt}.")
     else:
         for t in ttt:
             if t not in VALID_TRANSLATION_TASK_TYPES:
@@ -251,26 +254,39 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
         report.add("error", "tier", qa_id,
                    f"tier '{tier}' must be one of {VALID_TIERS}.")
 
-    # compound_coupling (v3.1) — list of "disc-disc" pairs, alphabetized within each pair.
-    # For an N-discipline QA, the list must contain exactly C(N,2) canonical pairs
-    # covering every pair of primary_disciplines (empty for single-discipline QAs).
-    cc = qa.get("compound_coupling", [])
+    # compound_coupling (v3.1) — REQUIRED field on every QA. For an N-discipline
+    # QA, the list must contain exactly C(N,2) canonical (alphabetized) pairs
+    # covering every pair of primary_disciplines. Single-discipline QAs must
+    # provide an explicit empty list `[]` (not omit the field).
     parsed_pairs: Set[tuple] = set()
     coupling_valid = True
-    if not isinstance(cc, list):
+    if "compound_coupling" not in qa:
         report.add("error", "compound-coupling", qa_id,
-                   "compound_coupling must be a list (empty for single-disc QAs).")
+                   "compound_coupling is required (use [] for single-discipline QAs).")
         coupling_valid = False
+        cc = []
     else:
+        cc = qa["compound_coupling"]
+        if not isinstance(cc, list):
+            report.add("error", "compound-coupling", qa_id,
+                       "compound_coupling must be a list (empty for single-disc QAs).")
+            coupling_valid = False
+            cc = []
+        elif len(cc) != len(set(cc)):
+            # Duplicate string entries; would also inflate per-coupling coverage stats.
+            seen = Counter(cc)
+            dups = sorted(p for p, n in seen.items() if n > 1)
+            report.add("error", "compound-coupling-duplicates", qa_id,
+                       f"compound_coupling contains duplicate pair(s): {dups}.")
+            coupling_valid = False
         for pair in cc:
             if not isinstance(pair, str) or "-" not in pair:
                 report.add("error", "compound-coupling", qa_id,
                            f"compound_coupling entry '{pair}' must be 'discipline-discipline' format.")
                 coupling_valid = False
                 continue
-            # Split into the longest left-side discipline name that exists in VALID_DISCIPLINES,
-            # because discipline names themselves may contain underscores (not hyphens), so
-            # splitting on the first hyphen correctly separates the two discipline names.
+            # Split on the first hyphen: discipline names may contain underscores
+            # but never hyphens, so the first hyphen separates the two disciplines.
             parts = pair.split("-", 1)
             if len(parts) != 2:
                 report.add("error", "compound-coupling", qa_id,
@@ -359,7 +375,7 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
                 report.add("error", "refusal-type", qa_id,
                            f"refusals_or_caveats_expected '{r}' must be one of {VALID_REFUSAL_TYPES}.")
 
-        # failure_modes_tested (v3.1) — required, 1-4 entries
+        # failure_modes_tested (v3.1) — required, 1-4 distinct entries
         fm = exp.get("failure_modes_tested", [])
         if not isinstance(fm, list) or not fm:
             report.add("error", "failure-modes", qa_id,
@@ -368,6 +384,9 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
             if len(fm) > 4:
                 report.add("error", "failure-modes-count", qa_id,
                            f"failure_modes_tested has {len(fm)} entries; must be 1-4.")
+            if len(set(fm)) != len(fm):
+                report.add("error", "failure-modes-duplicates", qa_id,
+                           f"failure_modes_tested contains duplicates: {fm}.")
             for f in fm:
                 if f not in VALID_FAILURE_MODES:
                     report.add("error", "failure-modes", qa_id,
