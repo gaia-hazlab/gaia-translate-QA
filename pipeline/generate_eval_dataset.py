@@ -130,19 +130,19 @@ TARGETS = {
         "atmospheric_sciences-geomorphology": 15,
         "geotechnical_engineering-hydrology": 20,
     },
-    "single_discipline": 90,
     # Cross-discipline-span QA-count targets (mirrors validate_eval_set.py
-    # TARGETS_FULL_SET["by_cross_discipline_span"], plus single-disc).
-    "span": {1: 90, 2: 70, 3: 20, 4: 10},
+    # TARGETS_FULL_SET["span"]; sums to 300 = 90 + 180 + 20 + 10).
+    "span": {1: 90, 2: 180, 3: 20, 4: 10},
 }
 
 # Failure modes that are meaningful for refusal-test prompts. The refusal-test
 # query type tests the chatbot's refusal/caveat behavior on questions it shouldn't
 # answer with confidence; the relevant failure modes are those a refusal-test can
-# actually probe.
-REFUSAL_RELEVANT_FAILURE_MODES = {
+# actually probe. Tuple (not set) so iteration order is deterministic when used
+# as candidates for _pick_widest_gap_from.
+REFUSAL_RELEVANT_FAILURE_MODES = (
     "hallucinated-analogue", "false-equivalence", "terminology-failure",
-}
+)
 
 
 # ============================================================================
@@ -210,7 +210,9 @@ CRITICAL RULES:
 USER_PROMPT_TEMPLATE = """\
 Generate ONE candidate v3.1 eval QA with these constraints:
 
-- Primary discipline(s): {disciplines}
+- Primary discipline(s) (use EXACTLY this list, in this order): {disciplines}
+- Compound coupling (use EXACTLY this list — alphabetized canonical pairs, one per
+  C(N,2) pair of the disciplines above; empty list for single-discipline): {compound_coupling}
 - Query type: {query_type}
 - Difficulty (numeric, 1-5): {difficulty}
 - Tier: {tier}
@@ -229,11 +231,11 @@ Output a single JSON object with this exact shape (v3.1 schema):
 {{
   "id": "{qa_id}",
   "schema_version": "v3",
-  "primary_disciplines": [...],
+  "primary_disciplines": {disciplines},
   "query_type": "{query_type}",
   "translation_task_types": ["{primary_task_type}", ...],
   "tier": "{tier}",
-  "compound_coupling": ["disc1-disc2", ...],
+  "compound_coupling": {compound_coupling},
   "difficulty": {difficulty},
   "prompt": "...",
   "input_document": {{
@@ -270,9 +272,11 @@ Output a single JSON object with this exact shape (v3.1 schema):
 
 CRITICAL constraints:
 - card IDs must reference REAL cards in the loaded corpus.
+- `primary_disciplines` must be EXACTLY {disciplines}.
+- `compound_coupling` must be EXACTLY {compound_coupling} (already alphabetized,
+  one entry per C(N,2) pair of primary_disciplines).
 - `translation_task_types` must have 1-3 entries from the 7-item taxonomy.
 - `failure_modes_tested` must have 1-4 entries from the 7-item taxonomy.
-- `compound_coupling` pairs must be alphabetized within each pair.
 - Use 3-6 specific response themes.
 - If query_type is refusal-test, populate refusals_or_caveats_expected
   AND must_not_say AND failure_modes_tested with the refusal-relevant modes.
@@ -341,6 +345,7 @@ def load_corpus_long_form(corpus_root: Path) -> str:
 def draft_one_qa(
     corpus_context: str,
     disciplines: List[str],
+    compound_coupling: List[str],
     query_type: str,
     difficulty: int,
     qa_id: str,
@@ -369,7 +374,8 @@ def draft_one_qa(
     client = anthropic.Anthropic(api_key=api_key)
 
     user_prompt = USER_PROMPT_TEMPLATE.format(
-        disciplines=disciplines,
+        disciplines=json.dumps(disciplines),
+        compound_coupling=json.dumps(compound_coupling),
         query_type=query_type,
         difficulty=difficulty,
         tier=tier,
@@ -456,7 +462,8 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
     -------
     dict:
         {
-          "disciplines": [str],          # 1-2 disciplines (the most-undercovered one + a coupling partner)
+          "disciplines": [str],          # 1-4 disciplines (span-based)
+          "compound_coupling": [str],    # C(N,2) canonical pairs of disciplines (empty for span=1)
           "query_type": str,
           "difficulty": int,
           "tier": str,                   # bronze / silver / gold
@@ -484,7 +491,6 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
     for qa in existing_qas:
         for c in qa.get("compound_coupling", []):
             actual_coupling[c] += 1
-    single_disc_count = sum(1 for qa in existing_qas if not qa.get("compound_coupling"))
 
     # Pick the most-undercovered value in each dimension
     gap_qt = _pick_widest_gap(TARGETS["query_type"], actual_qt)
@@ -533,14 +539,11 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
         coupling_pairs: List[str] = []
     elif target_span == 2:
         # Pick the most-undercovered coupling, preferring one that includes
-        # gap_disc only when that candidate's own deficit also beats fallback.
+        # gap_disc only when that candidate's own deficit is positive (so we
+        # don't overfill an at-target pair just to include gap_disc).
         worst_coupling = max(
             TARGETS["compound_coupling"],
             key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
-        )
-        worst_deficit = (
-            TARGETS["compound_coupling"][worst_coupling]
-            - actual_coupling.get(worst_coupling, 0)
         )
         candidates_with_gap_disc = [
             c for c in TARGETS["compound_coupling"] if gap_disc in c.split("-", 1)
@@ -554,9 +557,6 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
                 TARGETS["compound_coupling"][preferred]
                 - actual_coupling.get(preferred, 0)
             )
-            # Only stick with the gap_disc-containing pair if it actually has
-            # remaining deficit — otherwise picking it would overfill a pair
-            # that's already at or above target just to include gap_disc.
             coupling = preferred if preferred_deficit > 0 else worst_coupling
         else:
             coupling = worst_coupling
@@ -565,17 +565,15 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
         coupling_pairs = [coupling]
     else:
         # 3- or 4-discipline QA: pick the top-N most-undercovered disciplines
-        # (including gap_disc if it's not already in the top), then emit every
-        # canonical C(N,2) pair.
+        # and emit every canonical C(N,2) pair. (gap_disc is by construction
+        # the discipline with the largest deficit, so it is always in the
+        # top-N slice.)
         ranked = sorted(
             TARGETS["discipline"],
             key=lambda d: TARGETS["discipline"][d] - actual_disc.get(d, 0),
             reverse=True,
         )
-        disciplines = ranked[:target_span]
-        if gap_disc not in disciplines:
-            disciplines[-1] = gap_disc
-        disciplines = sorted(disciplines)
+        disciplines = sorted(ranked[:target_span])
         coupling_pairs = [f"{a}-{b}" for a, b in combinations(disciplines, 2)]
 
     return {
@@ -641,30 +639,22 @@ def report_coverage(existing_qas: List[Dict]) -> str:
         lines.append(f"    {k:30s} {actual:3d} / {target}  (gap {target - actual})")
 
     actual_coupling: Counter = Counter()
-    single_disc = 0
     for qa in existing_qas:
-        cc = qa.get("compound_coupling", [])
-        if not cc:
-            single_disc += 1
-        else:
-            for c in cc:
-                actual_coupling[c] += 1
-    lines.append("  By compound coupling:")
+        for c in qa.get("compound_coupling", []) or []:
+            actual_coupling[c] += 1
+    lines.append("  By compound coupling (pair occurrences):")
     for k, target in TARGETS["compound_coupling"].items():
         actual = actual_coupling.get(k, 0)
         lines.append(f"    {k:40s} {actual:3d} / {target}  (gap {target - actual})")
-    single_target = TARGETS["single_discipline"]
-    lines.append(f"  Single-discipline (no coupling):    {single_disc:3d} / "
-                 f"{single_target}  (gap {single_target - single_disc})")
 
     span_actual = Counter(
-        len(qa.get("primary_disciplines", [])) for qa in existing_qas
+        len(qa.get("primary_disciplines", []) or []) for qa in existing_qas
     )
-    lines.append("  By cross-discipline span:")
+    lines.append("  By cross-discipline span (QA-count, sums to 300):")
     for s, target in TARGETS["span"].items():
         actual = span_actual.get(s, 0)
-        lines.append(f"    span={s}                          {actual:3d} / {target}  "
-                     f"(gap {target - actual})")
+        label = f"span={s}" + (" (single-disc)" if s == 1 else "")
+        lines.append(f"    {label:30s} {actual:3d} / {target}  (gap {target - actual})")
 
     return "\n".join(lines)
 
@@ -796,6 +786,7 @@ def main(argv=None) -> int:
             qa = draft_one_qa(
                 corpus_context=corpus_context,
                 disciplines=disciplines,
+                compound_coupling=compound_coupling,
                 query_type=query_type,
                 difficulty=difficulty,
                 qa_id=qa_id,

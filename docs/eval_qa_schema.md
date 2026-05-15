@@ -366,7 +366,7 @@ See `docs/eval_dimensions_framework.md` §3 for the full coupling matrix.
 
 
 
-### Per-discipline coverage (single-discipline QAs)
+### Per-discipline coverage (count of QAs *touching* each discipline; cross-discipline QAs contribute to multiple)
 
 | Discipline | Target count |
 |---|---|
@@ -378,20 +378,20 @@ See `docs/eval_dimensions_framework.md` §3 for the full coupling matrix.
 | Ecology | 25 |
 | Agricultural sciences | 25 |
 | Near-surface geophysics | 25 |
-| (subtotal, single-discipline) | **200** |
 
-Tolerance: ±5 per discipline.
+Tolerance: ±5 per discipline. (Each discipline must be touched by at least this many QAs; cross-discipline QAs count toward every discipline they include, so per-discipline totals overlap and the column does not sum to the 300-QA total.)
 
-### Cross-discipline coverage
+### Cross-discipline coverage (count of QAs at each span; sums to 300)
 
 | Discipline span | Target count |
 |---|---|
-| 2-discipline | 70 |
-| 3-discipline | 20 |
-| 4+ discipline | 10 |
-| (subtotal, cross-discipline) | **100** |
+| 1 (single-discipline) | 90 |
+| 2 | 180 |
+| 3 | 20 |
+| 4 | 10 |
+| **Total** | **300** |
 
-Tolerance: ±10 across the cross-discipline subset.
+Tolerance: ±15 for span-1 and span-2; ±5 for span-3 and span-4.
 
 ### Query-type distribution
 

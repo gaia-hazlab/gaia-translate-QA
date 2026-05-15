@@ -61,7 +61,9 @@ The dominant payoff is #4: the publishable contribution per the prior-art review
 
 **Stratification target** (recommended; matches the matrix in `docs/prior_art/benchmark_design_lessons_from_prior_art.md` §12):
 
-| Coupling (canonical, alphabetized) | Target QA count |
+Per-pair targets (count of pair *occurrences* — a 3-discipline QA contributes one occurrence to each of its 3 canonical pairs, so per-pair counts can exceed the per-QA span totals further down):
+
+| Coupling (canonical, alphabetized) | Pair-occurrence target |
 |---|---|
 | hydrology-seismology | 30 |
 | geotechnical_engineering-seismology | 25 |
@@ -72,8 +74,15 @@ The dominant payoff is #4: the publishable contribution per the prior-art review
 | geomorphology-hydrology | 25 |
 | atmospheric_sciences-geomorphology | 15 |
 | geotechnical_engineering-hydrology | 20 |
-| (three-way couplings) | 10 |
-| Single-discipline (no coupling) | 90 |
+
+By-span targets (count of *QAs* — each QA falls into exactly one span bucket; this is what the validator and the auto picker stratify against):
+
+| Span | QA-count target |
+|---|---|
+| 1 (single-discipline)  | 90 |
+| 2 (one canonical pair) | 180 |
+| 3 (three canonical pairs) | 20 |
+| 4 (six canonical pairs)   | 10 |
 | **Total** | **300** |
 
 Tolerance: ±5 per coupling.
@@ -150,10 +159,10 @@ Reviewers don't need to change how they score. The chatbot's output still goes t
 
 To make the analysis above statistically meaningful, the stratification matrix is:
 
-- **Tier**: 150 bronze / 120 silver / 30 gold
-- **Translation task types**: 50–60 QAs per task type (with overlap since each QA can have 1–3)
-- **Compound coupling**: as in the table above
-- **Failure modes**: 30–60 QAs per failure mode (with overlap; each QA tests 1–4)
+- **Tier**: 150 bronze / 120 silver / 30 gold (sums to 300)
+- **Translation task types** (with overlap since each QA has 1–3): per-type targets range from 30 (data-availability-assessment) to 80 (concept-mapping); see `docs/eval_qa_schema.md` §4 for the full table
+- **Compound coupling**: per-pair occurrence targets in §3 above; per-QA span targets sum to 300 (90/180/20/10 across spans 1–4)
+- **Failure modes** (with overlap; each QA tests 1–4): per-mode targets range from 30 (hallucinated-analogue) to 60 (missing-constraint); see `docs/eval_qa_schema.md` §4
 - **Existing dimensions** (query_type, difficulty, discipline): as in `docs/eval_qa_schema.md` §4
 
 A QA covers multiple cells: e.g., a single silver-tier concept-mapping QA on seismic-hydro coupling testing the missing-constraint and hallucinated-analogue failure modes contributes to four cells of the stratification, which means we don't need 300 × (4 + 7 + 7 + 10) cells of data — each QA earns multiple "ticks."
