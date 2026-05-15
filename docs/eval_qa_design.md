@@ -131,7 +131,7 @@ Approximate mapping: bronze ↔ difficulty 1–2; silver ↔ difficulty 3–4; g
 
 ## 2.7. Compound coupling (NEW in v3.1) — explicit pair tagging
 
-For cross-discipline QAs, the `compound_coupling` field lists discipline-pair couplings the translation crosses. Format: `["seismology-hydrology", "seismology-geotechnical_engineering"]`, alphabetized within each pair.
+For cross-discipline QAs, the `compound_coupling` field lists discipline-pair couplings the translation crosses, alphabetized within each pair (canonical form). Example: `["geotechnical_engineering-seismology", "hydrology-seismology"]`.
 
 - Single-discipline QAs: empty list `[]`.
 - A QA that spans seismology + hydrology + geotech has THREE couplings (each pair counted): `["geotechnical_engineering-hydrology", "geotechnical_engineering-seismology", "hydrology-seismology"]`.

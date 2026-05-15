@@ -55,20 +55,20 @@ The dominant payoff is #4: the publishable contribution per the prior-art review
 
 **What it is.** Explicit pairing of disciplines that the translation crosses. For single-discipline QAs, this is empty. For cross-discipline QAs, it's an ordered or unordered list of pairs (we use unordered for stratification).
 
-**Format**: `["seismology-hydrology", "seismology-geotechnical_engineering"]`. Sorted alphabetically within each pair so `"hydrology-seismology"` ≡ `"seismology-hydrology"` → canonical form is alphabetized.
+**Format**: alphabetized within each pair so `"hydrology-seismology"` ≡ `"seismology-hydrology"` — canonical form is the alphabetized one. Example list (3-discipline QA spanning hydrology + seismology + geotechnical engineering): `["geotechnical_engineering-hydrology", "geotechnical_engineering-seismology", "hydrology-seismology"]`.
 
 **Why it matters.** The publishable analysis the prior-art review recommends is "where is translation hardest, by coupling": e.g., seismic→hydrology might score 78%, seismic→atmosphere only 61%, suggesting timescale-mismatch is the dominant gap for atmospheric translations. This requires explicit coupling tagging on every cross-discipline QA.
 
 **Stratification target** (recommended; matches the matrix in `docs/prior_art/benchmark_design_lessons_from_prior_art.md` §12):
 
-| Coupling | Target QA count |
+| Coupling (canonical, alphabetized) | Target QA count |
 |---|---|
-| seismology-hydrology | 30 |
-| seismology-geotechnical_engineering | 25 |
-| seismology-geomorphology | 20 |
-| hydrology-atmospheric_sciences | 25 |
-| hydrology-ecology | 20 |
-| hydrology-agricultural_sciences | 20 |
+| hydrology-seismology | 30 |
+| geotechnical_engineering-seismology | 25 |
+| geomorphology-seismology | 20 |
+| atmospheric_sciences-hydrology | 25 |
+| ecology-hydrology | 20 |
+| agricultural_sciences-hydrology | 20 |
 | geomorphology-hydrology | 25 |
 | atmospheric_sciences-geomorphology | 15 |
 | geotechnical_engineering-hydrology | 20 |

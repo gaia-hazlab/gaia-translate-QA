@@ -33,6 +33,7 @@ import re
 import sys
 from collections import Counter
 from dataclasses import dataclass, field, asdict
+from itertools import combinations
 from pathlib import Path
 from typing import List, Set, Dict, Optional
 
@@ -103,9 +104,40 @@ TARGETS_FULL_SET = {
         "joint-observation": 30,
     },
     "by_difficulty": {1: 30, 2: 60, 3: 120, 4: 60, 5: 30},
+    # v3.1 dimension targets (mirror pipeline/generate_eval_dataset.py TARGETS and
+    # docs/eval_dimensions_framework.md §2-4).
+    "by_tier": {"bronze": 150, "silver": 120, "gold": 30},
+    "by_translation_task_type": {
+        "concept-mapping": 80, "method-translation": 70,
+        "sensor-data-equivalence": 50, "data-availability-assessment": 30,
+        "terminology-bridging": 50, "limitation-translation": 50,
+        "parameter-threshold-equivalence": 35,
+    },
+    "by_failure_mode_tested": {
+        "missing-constraint": 60, "domain-ignorance": 55,
+        "concept-confusion": 50, "false-equivalence": 50,
+        "implausible-calibration": 40, "terminology-failure": 40,
+        "hallucinated-analogue": 30,
+    },
+    "by_compound_coupling": {
+        "hydrology-seismology": 30,
+        "geotechnical_engineering-seismology": 25,
+        "geomorphology-seismology": 20,
+        "atmospheric_sciences-hydrology": 25,
+        "ecology-hydrology": 20,
+        "agricultural_sciences-hydrology": 20,
+        "geomorphology-hydrology": 25,
+        "atmospheric_sciences-geomorphology": 15,
+        "geotechnical_engineering-hydrology": 20,
+    },
+    "single_discipline_target": 90,
     "tolerance_per_discipline": 5,
     "tolerance_per_query_type_pct": 0.05,
     "tolerance_per_difficulty": 15,
+    "tolerance_per_tier": 15,
+    "tolerance_per_task_type": 10,
+    "tolerance_per_failure_mode": 10,
+    "tolerance_per_coupling": 5,
 }
 
 
@@ -219,30 +251,66 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
         report.add("error", "tier", qa_id,
                    f"tier '{tier}' must be one of {VALID_TIERS}.")
 
-    # compound_coupling (v3.1) — list of "disc-disc" pairs, alphabetized within each pair
+    # compound_coupling (v3.1) — list of "disc-disc" pairs, alphabetized within each pair.
+    # For an N-discipline QA, the list must contain exactly C(N,2) canonical pairs
+    # covering every pair of primary_disciplines (empty for single-discipline QAs).
     cc = qa.get("compound_coupling", [])
+    parsed_pairs: Set[tuple] = set()
+    coupling_valid = True
     if not isinstance(cc, list):
         report.add("error", "compound-coupling", qa_id,
                    "compound_coupling must be a list (empty for single-disc QAs).")
+        coupling_valid = False
     else:
         for pair in cc:
             if not isinstance(pair, str) or "-" not in pair:
                 report.add("error", "compound-coupling", qa_id,
                            f"compound_coupling entry '{pair}' must be 'discipline-discipline' format.")
+                coupling_valid = False
                 continue
+            # Split into the longest left-side discipline name that exists in VALID_DISCIPLINES,
+            # because discipline names themselves may contain underscores (not hyphens), so
+            # splitting on the first hyphen correctly separates the two discipline names.
             parts = pair.split("-", 1)
             if len(parts) != 2:
                 report.add("error", "compound-coupling", qa_id,
                            f"compound_coupling entry '{pair}' has unexpected format.")
+                coupling_valid = False
                 continue
             d1, d2 = parts[0], parts[1]
             if d1 not in VALID_DISCIPLINES or d2 not in VALID_DISCIPLINES:
                 report.add("error", "compound-coupling", qa_id,
                            f"compound_coupling '{pair}' references unknown discipline(s).")
+                coupling_valid = False
                 continue
             if d1 >= d2:
-                report.add("warning", "compound-coupling-order", qa_id,
-                           f"compound_coupling '{pair}' should be alphabetized within pair (canonical: '{min(d1,d2)}-{max(d1,d2)}').")
+                report.add("error", "compound-coupling-order", qa_id,
+                           f"compound_coupling '{pair}' is not alphabetized within pair "
+                           f"(canonical: '{min(d1,d2)}-{max(d1,d2)}').")
+                coupling_valid = False
+                continue
+            parsed_pairs.add((d1, d2))
+
+    # Coverage check: parsed pairs must equal the C(N,2) pairs of primary_disciplines.
+    if coupling_valid and isinstance(pdsc, list) and pdsc:
+        valid_disc_in_pdsc = [d for d in pdsc if d in VALID_DISCIPLINES]
+        expected_pairs = {
+            (a, b) for a, b in (
+                tuple(sorted([d1, d2])) for d1, d2 in combinations(valid_disc_in_pdsc, 2)
+            )
+        }
+        if expected_pairs != parsed_pairs:
+            missing = expected_pairs - parsed_pairs
+            extra = parsed_pairs - expected_pairs
+            details = []
+            if missing:
+                details.append("missing " + ", ".join(f"'{a}-{b}'" for a, b in sorted(missing)))
+            if extra:
+                details.append("unexpected " + ", ".join(f"'{a}-{b}'" for a, b in sorted(extra)))
+            report.add("error", "compound-coupling-coverage", qa_id,
+                       f"compound_coupling must contain exactly the C(N,2) canonical pairs of "
+                       f"primary_disciplines ({len(expected_pairs)} for {len(valid_disc_in_pdsc)} "
+                       f"disciplines); " + "; ".join(details) + ".")
 
     # difficulty
     diff = qa.get("difficulty")
@@ -296,10 +364,10 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
         if not isinstance(fm, list) or not fm:
             report.add("error", "failure-modes", qa_id,
                        "expected_output.failure_modes_tested must be a non-empty list (1-4 entries).")
-        elif not 1 <= len(fm) <= 4:
-            report.add("warning", "failure-modes-count", qa_id,
-                       f"failure_modes_tested has {len(fm)} entries; recommend 1-4.")
         else:
+            if len(fm) > 4:
+                report.add("error", "failure-modes-count", qa_id,
+                           f"failure_modes_tested has {len(fm)} entries; must be 1-4.")
             for f in fm:
                 if f not in VALID_FAILURE_MODES:
                     report.add("error", "failure-modes", qa_id,
@@ -398,12 +466,15 @@ def compute_stats(qas: List[Dict]) -> Dict:
         for f in qa.get("expected_output", {}).get("failure_modes_tested", []):
             by_failure_mode[f] += 1
 
+    # Note: int keys are preserved here so check_stratification() can look up
+    # targets by their native int keys (difficulty, span). json.dump auto-stringifies
+    # int dict keys when serializing the canonical JSON.
     return {
         "total": len(qas),
         "by_query_type": dict(by_query_type),
-        "by_difficulty": {str(k): v for k, v in by_difficulty.items()},
+        "by_difficulty": dict(by_difficulty),
         "by_discipline": dict(by_discipline),
-        "by_span": {str(k): v for k, v in by_span.items()},
+        "by_span": dict(by_span),
         "by_status": dict(by_status),
         # v3.1 additions
         "by_tier": dict(by_tier),
@@ -455,6 +526,43 @@ def check_stratification(stats: Dict, full_set: bool, report: ValidationReport) 
             if abs(actual - target) > tolerance_diff:
                 report.add(severity, "stratification-difficulty", "",
                            f"difficulty {d}: {actual} QAs; target {target} ± {tolerance_diff}.")
+
+    # v3.1 stratification: tier, translation task type, failure mode, compound coupling
+    if full_set:
+        for tier, target in TARGETS_FULL_SET["by_tier"].items():
+            actual = stats.get("by_tier", {}).get(tier, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_tier"]
+            if abs(actual - target) > tol:
+                report.add(severity, "stratification-tier", "",
+                           f"tier {tier}: {actual} QAs; target {target} ± {tol}.")
+
+        for tt, target in TARGETS_FULL_SET["by_translation_task_type"].items():
+            actual = stats.get("by_translation_task_type", {}).get(tt, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_task_type"]
+            if abs(actual - target) > tol:
+                report.add(severity, "stratification-task-type", "",
+                           f"task type {tt}: {actual} QAs; target {target} ± {tol}.")
+
+        for fm, target in TARGETS_FULL_SET["by_failure_mode_tested"].items():
+            actual = stats.get("by_failure_mode_tested", {}).get(fm, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_failure_mode"]
+            if abs(actual - target) > tol:
+                report.add(severity, "stratification-failure-mode", "",
+                           f"failure mode {fm}: {actual} QAs; target {target} ± {tol}.")
+
+        for coupling, target in TARGETS_FULL_SET["by_compound_coupling"].items():
+            actual = stats.get("by_compound_coupling", {}).get(coupling, 0)
+            tol = TARGETS_FULL_SET["tolerance_per_coupling"]
+            if abs(actual - target) > tol:
+                report.add(severity, "stratification-coupling", "",
+                           f"coupling {coupling}: {actual} QAs; target {target} ± {tol}.")
+
+        single_actual = stats.get("single_discipline_count", 0)
+        single_target = TARGETS_FULL_SET["single_discipline_target"]
+        if abs(single_actual - single_target) > TARGETS_FULL_SET["tolerance_per_difficulty"]:
+            report.add(severity, "stratification-single-discipline", "",
+                       f"single-discipline QAs: {single_actual}; target {single_target} ± "
+                       f"{TARGETS_FULL_SET['tolerance_per_difficulty']}.")
 
 
 # ============================================================================

@@ -191,7 +191,7 @@ The eval set is the expert-graded benchmark for the Gaia translator chatbot. Pha
 
 - **`translation_task_types`** — 7-item taxonomy of cognitive translation operations (concept-mapping, method-translation, sensor-data-equivalence, data-availability-assessment, terminology-bridging, limitation-translation, parameter-threshold-equivalence).
 - **`tier`** — bronze / silver / gold, anchored to task complexity (EarthSE Iron/Silver/Gold model).
-- **`compound_coupling`** — explicit discipline-pair tagging for cross-discipline QAs (e.g., `seismology-hydrology`).
+- **`compound_coupling`** — explicit discipline-pair tagging for cross-discipline QAs, alphabetized within each pair (e.g., `hydrology-seismology`, not `seismology-hydrology`).
 - **`expected_output.failure_modes_tested`** — 7-item failure-mode taxonomy (hallucinated-analogue, concept-confusion, domain-ignorance, implausible-calibration, missing-constraint, false-equivalence, terminology-failure). This is the **headline addition**: per-failure-mode analysis at evaluation time is the publishable contribution per `docs/prior_art/REVISED_novelty_assessment_earthse_context.md`.
 
 See `docs/eval_dimensions_framework.md` for the full rationale; `docs/prior_art/` for the source analyses.

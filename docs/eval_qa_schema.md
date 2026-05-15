@@ -167,8 +167,9 @@ class ExpectedOutput(BaseModel):
     )
 
     failure_modes_tested: List[FailureMode] = Field(
-        default_factory=list,
+        ...,
         min_length=1,
+        max_length=4,
         description=(
             "The failure-mode taxonomy entries this QA specifically probes. "
             "Typically 1-4 modes per QA. Used at analysis time to compute "
@@ -265,9 +266,11 @@ class EvalQA(BaseModel):
         default_factory=list,
         description=(
             "Discipline-pair couplings the translation crosses, e.g., "
-            "['seismology-hydrology', 'hydrology-geomorphology']. "
+            "['geomorphology-hydrology', 'hydrology-seismology']. "
             "Empty list for single-discipline QAs. Sorted alphabetically within "
             "each pair as the canonical form ('hydrology-seismology' not 'seismology-hydrology'). "
+            "For an N-discipline QA, this must contain exactly C(N,2) canonical pairs "
+            "that cover all pairs of `primary_disciplines`. "
             "Used for per-coupling stratification and analysis."
         )
     )

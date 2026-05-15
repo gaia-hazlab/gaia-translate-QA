@@ -116,6 +116,28 @@ TARGETS = {
         "implausible-calibration": 40, "terminology-failure": 40,
         "hallucinated-analogue": 30,
     },
+    # Canonical (alphabetized) compound-coupling targets — used by auto_pick_gap
+    # to pick a 2nd discipline when coupling coverage is the dominant gap.
+    "compound_coupling": {
+        "hydrology-seismology": 30,
+        "geotechnical_engineering-seismology": 25,
+        "geomorphology-seismology": 20,
+        "atmospheric_sciences-hydrology": 25,
+        "ecology-hydrology": 20,
+        "agricultural_sciences-hydrology": 20,
+        "geomorphology-hydrology": 25,
+        "atmospheric_sciences-geomorphology": 15,
+        "geotechnical_engineering-hydrology": 20,
+    },
+    "single_discipline": 90,
+}
+
+# Failure modes that are meaningful for refusal-test prompts. The refusal-test
+# query type tests the chatbot's refusal/caveat behavior on questions it shouldn't
+# answer with confidence; the relevant failure modes are those a refusal-test can
+# actually probe.
+REFUSAL_RELEVANT_FAILURE_MODES = {
+    "hallucinated-analogue", "false-equivalence", "terminology-failure",
 }
 
 
@@ -410,6 +432,11 @@ def _pick_widest_gap(targets: Dict, actuals: Counter) -> str:
     return max(targets, key=lambda k: targets[k] - actuals.get(k, 0))
 
 
+def _pick_widest_gap_from(targets: Dict, actuals: Counter, candidates) -> str:
+    """Pick the candidate key with the largest (target - actual) deficit."""
+    return max(candidates, key=lambda k: targets.get(k, 0) - actuals.get(k, 0))
+
+
 def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
     """
     Identify the worst undercoverage in the current eval set vs. v3.1 targets.
@@ -449,6 +476,11 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
     for qa in existing_qas:
         for f in qa.get("expected_output", {}).get("failure_modes_tested", []):
             actual_failure_mode[f] += 1
+    actual_coupling: Counter = Counter()
+    for qa in existing_qas:
+        for c in qa.get("compound_coupling", []):
+            actual_coupling[c] += 1
+    single_disc_count = sum(1 for qa in existing_qas if not qa.get("compound_coupling"))
 
     # Pick the most-undercovered value in each dimension
     gap_qt = _pick_widest_gap(TARGETS["query_type"], actual_qt)
@@ -460,20 +492,60 @@ def auto_pick_gap(existing_qas: List[Dict]) -> Dict:
 
     # Self-consistency nudges:
     # - Bronze tier usually difficulty 1-2; silver 3-4; gold 4-5. If gap_tier
-    #   and gap_diff disagree strongly, prefer the tier and adjust difficulty.
+    #   and gap_diff disagree, snap to the in-range endpoint with the larger
+    #   remaining deficit (so we don't always pick the closest endpoint and
+    #   skew the difficulty distribution).
     tier_to_diff_range = {"bronze": (1, 2), "silver": (3, 4), "gold": (4, 5)}
     diff_lo, diff_hi = tier_to_diff_range[gap_tier]
     if not (diff_lo <= gap_diff <= diff_hi):
-        gap_diff = diff_lo if abs(gap_diff - diff_lo) <= abs(gap_diff - diff_hi) else diff_hi
+        gap_diff = _pick_widest_gap_from(
+            TARGETS["difficulty"], actual_diff, [diff_lo, diff_hi]
+        )
 
-    # - refusal-test query type implies failure_modes should be in the refusal-relevant set.
-    if gap_qt == "refusal-test" and gap_failure_mode not in (
-        "hallucinated-analogue", "false-equivalence", "terminology-failure"
-    ):
-        gap_failure_mode = "hallucinated-analogue"  # default for refusal-test
+    # - refusal-test query type implies failure_modes should be in the
+    #   refusal-relevant subset. Pick the most-undercovered mode in that subset
+    #   rather than hard-coding a default, so the auto loop doesn't repeatedly
+    #   overfill one refusal mode while others remain underfilled.
+    if gap_qt == "refusal-test" and gap_failure_mode not in REFUSAL_RELEVANT_FAILURE_MODES:
+        gap_failure_mode = _pick_widest_gap_from(
+            TARGETS["failure_mode"], actual_failure_mode, REFUSAL_RELEVANT_FAILURE_MODES
+        )
+
+    # Coupling: decide single- vs. multi-discipline by comparing the largest
+    # remaining coupling deficit against the single-discipline deficit. If a
+    # coupling is more under-target than single-discipline coverage, pick a
+    # canonical pair that includes gap_disc (preferred) — otherwise the most-
+    # undercovered pair overall.
+    disciplines = [gap_disc]
+    coupling = None
+    if TARGETS.get("compound_coupling"):
+        single_deficit = TARGETS["single_discipline"] - single_disc_count
+        worst_coupling = max(
+            TARGETS["compound_coupling"],
+            key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
+        )
+        worst_coupling_deficit = (
+            TARGETS["compound_coupling"][worst_coupling]
+            - actual_coupling.get(worst_coupling, 0)
+        )
+        if worst_coupling_deficit > single_deficit:
+            # Prefer a coupling that includes gap_disc; otherwise take the worst.
+            candidates_with_gap_disc = [
+                c for c in TARGETS["compound_coupling"] if gap_disc in c.split("-", 1)
+            ]
+            if candidates_with_gap_disc:
+                coupling = max(
+                    candidates_with_gap_disc,
+                    key=lambda c: TARGETS["compound_coupling"][c] - actual_coupling.get(c, 0),
+                )
+            else:
+                coupling = worst_coupling
+            d1, d2 = coupling.split("-", 1)
+            disciplines = [d1, d2]
 
     return {
-        "disciplines": [gap_disc],
+        "disciplines": disciplines,
+        "compound_coupling": [coupling] if coupling else [],
         "query_type": gap_qt,
         "difficulty": gap_diff,
         "tier": gap_tier,
@@ -620,6 +692,7 @@ def main(argv=None) -> int:
         if args.auto:
             choice = auto_pick_gap(existing_qas + drafted)
             disciplines = choice["disciplines"]
+            compound_coupling = choice["compound_coupling"]
             query_type = choice["query_type"]
             difficulty = choice["difficulty"]
             tier = choice["tier"]
@@ -627,6 +700,7 @@ def main(argv=None) -> int:
             primary_failure_mode = choice["primary_failure_mode"]
         else:
             disciplines = [args.discipline]
+            compound_coupling = []
             query_type = args.query_type
             difficulty = args.difficulty
             tier = args.tier
@@ -637,7 +711,8 @@ def main(argv=None) -> int:
 
         if args.dry_run:
             print(f"[DRY RUN] Would draft: {qa_id}")
-            print(f"            disciplines={disciplines}, query_type={query_type}, diff={difficulty}")
+            print(f"            disciplines={disciplines}, coupling={compound_coupling}, "
+                  f"query_type={query_type}, diff={difficulty}")
             print(f"            tier={tier}, primary_task_type={primary_task_type}")
             print(f"            primary_failure_mode={primary_failure_mode}")
             # Track minimal fields in drafted list so the auto-prioritizer
@@ -645,6 +720,7 @@ def main(argv=None) -> int:
             drafted.append({
                 "id": qa_id,
                 "primary_disciplines": disciplines,
+                "compound_coupling": compound_coupling,
                 "query_type": query_type,
                 "difficulty": difficulty,
                 "tier": tier,
