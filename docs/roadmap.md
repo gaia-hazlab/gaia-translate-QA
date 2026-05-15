@@ -17,7 +17,7 @@ Status as of this document:
 - Pipeline 🟡 (`additional_seed_qas.py` present; `seed_qa_dataset.py`, `generate_eval_dataset.py`, `build_review_spreadsheet.py` need re-creation as part of Phase 6)
 - Card linter ✅ (`pipeline/lint_cards.py`; 0 errors, 3 acceptable warnings)
 - **Low-level translator tool** 🔲 (Phase 4, Derek's work, ~2–3 weeks; schema spec at `docs/phase4_output_schema.md`)
-- Eval set v3 🟡 21 / ~300 seed QAs (Phase 6 in progress; pipeline + docs in place)
+- Eval set v3.1 🟡 21 / ~300 seed QAs with full dimensional tagging (translation task types, tier, compound coupling, failure modes); Phase 6 in progress; per-failure-mode analysis is the methodology-paper headline (`docs/eval_dimensions_framework.md`)
 - Expert evaluation rounds 🔲 (Phase 7)
 - ~~RAG retrieval layer~~ ⏸ deferred to future option
 - ~~Paper corpus~~ ⏸ deferred to future option

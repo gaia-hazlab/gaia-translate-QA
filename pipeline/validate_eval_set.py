@@ -68,6 +68,21 @@ VALID_REFUSAL_TYPES = {
 
 VALID_STATUSES = {"draft", "reviewed", "approved", "deprecated"}
 
+# v3.1 new enums
+VALID_TRANSLATION_TASK_TYPES = {
+    "concept-mapping", "method-translation", "sensor-data-equivalence",
+    "data-availability-assessment", "terminology-bridging",
+    "limitation-translation", "parameter-threshold-equivalence",
+}
+
+VALID_TIERS = {"bronze", "silver", "gold"}
+
+VALID_FAILURE_MODES = {
+    "hallucinated-analogue", "concept-confusion", "domain-ignorance",
+    "implausible-calibration", "missing-constraint", "false-equivalence",
+    "terminology-failure",
+}
+
 ID_PATTERN = re.compile(r"^(QA-EVAL|QA-CAL|QA-HELDOUT)-\d{3,}$")
 CARD_ID_PATTERN = re.compile(r"^(CC|MC|PD|TC)-[A-Za-z0-9_-]+$")
 
@@ -184,6 +199,51 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
         report.add("error", "query-type", qa_id,
                    f"query_type '{qt}' must be one of {VALID_QUERY_TYPES}.")
 
+    # translation_task_types (v3.1)
+    ttt = qa.get("translation_task_types", [])
+    if not isinstance(ttt, list) or not ttt:
+        report.add("error", "translation-task-types", qa_id,
+                   "translation_task_types must be a non-empty list (1-3 entries).")
+    elif not 1 <= len(ttt) <= 3:
+        report.add("error", "translation-task-types", qa_id,
+                   f"translation_task_types must have 1-3 entries; got {len(ttt)}.")
+    else:
+        for t in ttt:
+            if t not in VALID_TRANSLATION_TASK_TYPES:
+                report.add("error", "translation-task-types", qa_id,
+                           f"unknown translation task type '{t}'; must be one of {sorted(VALID_TRANSLATION_TASK_TYPES)}.")
+
+    # tier (v3.1)
+    tier = qa.get("tier")
+    if tier not in VALID_TIERS:
+        report.add("error", "tier", qa_id,
+                   f"tier '{tier}' must be one of {VALID_TIERS}.")
+
+    # compound_coupling (v3.1) — list of "disc-disc" pairs, alphabetized within each pair
+    cc = qa.get("compound_coupling", [])
+    if not isinstance(cc, list):
+        report.add("error", "compound-coupling", qa_id,
+                   "compound_coupling must be a list (empty for single-disc QAs).")
+    else:
+        for pair in cc:
+            if not isinstance(pair, str) or "-" not in pair:
+                report.add("error", "compound-coupling", qa_id,
+                           f"compound_coupling entry '{pair}' must be 'discipline-discipline' format.")
+                continue
+            parts = pair.split("-", 1)
+            if len(parts) != 2:
+                report.add("error", "compound-coupling", qa_id,
+                           f"compound_coupling entry '{pair}' has unexpected format.")
+                continue
+            d1, d2 = parts[0], parts[1]
+            if d1 not in VALID_DISCIPLINES or d2 not in VALID_DISCIPLINES:
+                report.add("error", "compound-coupling", qa_id,
+                           f"compound_coupling '{pair}' references unknown discipline(s).")
+                continue
+            if d1 >= d2:
+                report.add("warning", "compound-coupling-order", qa_id,
+                           f"compound_coupling '{pair}' should be alphabetized within pair (canonical: '{min(d1,d2)}-{max(d1,d2)}').")
+
     # difficulty
     diff = qa.get("difficulty")
     if not isinstance(diff, int) or not 1 <= diff <= 5:
@@ -230,6 +290,20 @@ def validate_qa(qa: Dict, defined_card_ids: Set[str], report: ValidationReport) 
             if r not in VALID_REFUSAL_TYPES:
                 report.add("error", "refusal-type", qa_id,
                            f"refusals_or_caveats_expected '{r}' must be one of {VALID_REFUSAL_TYPES}.")
+
+        # failure_modes_tested (v3.1) — required, 1-4 entries
+        fm = exp.get("failure_modes_tested", [])
+        if not isinstance(fm, list) or not fm:
+            report.add("error", "failure-modes", qa_id,
+                       "expected_output.failure_modes_tested must be a non-empty list (1-4 entries).")
+        elif not 1 <= len(fm) <= 4:
+            report.add("warning", "failure-modes-count", qa_id,
+                       f"failure_modes_tested has {len(fm)} entries; recommend 1-4.")
+        else:
+            for f in fm:
+                if f not in VALID_FAILURE_MODES:
+                    report.add("error", "failure-modes", qa_id,
+                               f"unknown failure mode '{f}'; must be one of {sorted(VALID_FAILURE_MODES)}.")
 
         # Themes: 3-6 specific themes recommended
         themes = exp.get("user_specific_response_themes", [])
@@ -301,13 +375,42 @@ def compute_stats(qas: List[Dict]) -> Dict:
     # Cross-discipline span
     by_span = Counter(len(qa["primary_disciplines"]) for qa in qas)
 
+    # v3.1: tier
+    by_tier = Counter(qa.get("tier", "unknown") for qa in qas)
+
+    # v3.1: translation task types (each QA contributes to multiple)
+    by_task_type = Counter()
+    for qa in qas:
+        for t in qa.get("translation_task_types", []):
+            by_task_type[t] += 1
+
+    # v3.1: compound coupling (each QA contributes to multiple if multi-coupling)
+    by_coupling = Counter()
+    for qa in qas:
+        for c in qa.get("compound_coupling", []):
+            by_coupling[c] += 1
+    # Track count of single-discipline QAs (no coupling)
+    single_disc_count = sum(1 for qa in qas if not qa.get("compound_coupling"))
+
+    # v3.1: failure modes (each QA contributes to multiple)
+    by_failure_mode = Counter()
+    for qa in qas:
+        for f in qa.get("expected_output", {}).get("failure_modes_tested", []):
+            by_failure_mode[f] += 1
+
     return {
         "total": len(qas),
         "by_query_type": dict(by_query_type),
-        "by_difficulty": dict(by_difficulty),
+        "by_difficulty": {str(k): v for k, v in by_difficulty.items()},
         "by_discipline": dict(by_discipline),
-        "by_span": dict(by_span),
+        "by_span": {str(k): v for k, v in by_span.items()},
         "by_status": dict(by_status),
+        # v3.1 additions
+        "by_tier": dict(by_tier),
+        "by_translation_task_type": dict(by_task_type),
+        "by_compound_coupling": dict(by_coupling),
+        "single_discipline_count": single_disc_count,
+        "by_failure_mode_tested": dict(by_failure_mode),
     }
 
 
@@ -391,11 +494,16 @@ def print_text_report(report: ValidationReport, stats: Dict) -> None:
           f"{color(str(err), '31')} errors, {color(str(warn), '33')} warnings.")
     print()
     print("Stats:")
-    print(f"  By query type:  {stats['by_query_type']}")
-    print(f"  By difficulty:  {stats['by_difficulty']}")
-    print(f"  By discipline:  {stats['by_discipline']}")
-    print(f"  By disc-span:   {stats['by_span']}")
-    print(f"  By status:      {stats['by_status']}")
+    print(f"  By query type:        {stats['by_query_type']}")
+    print(f"  By difficulty:        {stats['by_difficulty']}")
+    print(f"  By tier:              {stats.get('by_tier', {})}")
+    print(f"  By discipline:        {stats['by_discipline']}")
+    print(f"  By disc-span:         {stats['by_span']}")
+    print(f"  By status:            {stats['by_status']}")
+    print(f"  By task type:         {stats.get('by_translation_task_type', {})}")
+    print(f"  Single-disc count:    {stats.get('single_discipline_count', 0)}")
+    print(f"  By coupling:          {stats.get('by_compound_coupling', {})}")
+    print(f"  By failure mode:      {stats.get('by_failure_mode_tested', {})}")
 
 
 def print_json_report(report: ValidationReport, stats: Dict) -> None:

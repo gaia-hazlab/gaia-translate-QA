@@ -1,6 +1,6 @@
 {
   "schema_version": "v3",
-  "generated_at": "2026-05-14T19:50:17.904421+00:00",
+  "generated_at": "2026-05-15T12:55:44.578069+00:00",
   "stats": {
     "total": 21,
     "by_query_type": {
@@ -34,6 +34,44 @@
     "by_status": {
       "approved": 3,
       "draft": 18
+    },
+    "by_tier": {
+      "silver": 15,
+      "gold": 5,
+      "bronze": 1
+    },
+    "by_translation_task_type": {
+      "method-translation": 12,
+      "parameter-threshold-equivalence": 5,
+      "limitation-translation": 8,
+      "terminology-bridging": 5,
+      "data-availability-assessment": 4,
+      "concept-mapping": 10,
+      "sensor-data-equivalence": 4
+    },
+    "by_compound_coupling": {
+      "geotechnical_engineering-seismology": 3,
+      "hydrology-seismology": 5,
+      "atmospheric_sciences-geomorphology": 1,
+      "atmospheric_sciences-ecology": 1,
+      "ecology-geomorphology": 1,
+      "agricultural_sciences-hydrology": 1,
+      "geotechnical_engineering-hydrology": 2,
+      "agricultural_sciences-geotechnical_engineering": 1,
+      "near_surface_geophysics-seismology": 2,
+      "geotechnical_engineering-near_surface_geophysics": 1,
+      "ecology-seismology": 1,
+      "hydrology-near_surface_geophysics": 1
+    },
+    "single_discipline_count": 9,
+    "by_failure_mode_tested": {
+      "false-equivalence": 14,
+      "missing-constraint": 12,
+      "implausible-calibration": 8,
+      "hallucinated-analogue": 2,
+      "terminology-failure": 5,
+      "concept-confusion": 8,
+      "domain-ignorance": 2
     }
   },
   "qas": [
@@ -46,6 +84,15 @@
       ],
       "query_type": "integration",
       "difficulty": 3,
+      "translation_task_types": [
+        "method-translation",
+        "parameter-threshold-equivalence",
+        "limitation-translation"
+      ],
+      "tier": "silver",
+      "compound_coupling": [
+        "geotechnical_engineering-seismology"
+      ],
       "prompt": "I just read Boulanger & Idriss (2014) on CPT and SPT liquefaction-triggering procedures. I'm a seismologist working on the Nisqually basin and I want to understand how this connects to my work on Vs30 and ambient-noise dv/v. What should I take away?",
       "input_document": {
         "type": "none",
@@ -75,6 +122,11 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "false-equivalence",
+          "missing-constraint",
+          "implausible-calibration"
+        ],
         "user_specific_response_themes": [
           "Explains that a_max from NGA-West2 (the user's GMPE work) feeds CSR directly.",
           "Explains the Vs1 \u2192 CRR Andrus-Stokoe link in the upper 30 m, citing the depth-regime issue (TC-12).",
@@ -105,6 +157,13 @@
       ],
       "query_type": "vocabulary-disambiguation",
       "difficulty": 2,
+      "translation_task_types": [
+        "terminology-bridging"
+      ],
+      "tier": "silver",
+      "compound_coupling": [
+        "hydrology-seismology"
+      ],
       "prompt": "Can seismic attenuation Q tell me about streamflow Q in a watershed? They have the same symbol, so there should be some kind of relation I can exploit. What papers explore this?",
       "input_document": {
         "type": "none",
@@ -128,6 +187,11 @@
         "refusals_or_caveats_expected": [
           "vocabulary-collision",
           "fabrication-prevention"
+        ],
+        "failure_modes_tested": [
+          "hallucinated-analogue",
+          "false-equivalence",
+          "terminology-failure"
         ],
         "user_specific_response_themes": [
           "Refuses to assert a physical relation between seismic Q and streamflow Q.",
@@ -159,6 +223,15 @@
       ],
       "query_type": "joint-observation",
       "difficulty": 4,
+      "translation_task_types": [
+        "method-translation",
+        "data-availability-assessment",
+        "limitation-translation"
+      ],
+      "tier": "gold",
+      "compound_coupling": [
+        "hydrology-seismology"
+      ],
       "prompt": "Can I replace groundwater-monitoring well networks in California with ambient seismic noise dv/v? I'm building a proposal to deploy dense seismic arrays in the Central Valley and I want to claim dv/v as a hydrology product.",
       "input_document": {
         "type": "none",
@@ -185,6 +258,11 @@
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [
           "different-regime"
+        ],
+        "failure_modes_tested": [
+          "missing-constraint",
+          "implausible-calibration",
+          "false-equivalence"
         ],
         "user_specific_response_themes": [
           "Hedges 'replace' to 'complement' \u2014 dv/v cannot fully replace wells at Central Valley scale.",
@@ -214,6 +292,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 3,
+      "translation_task_types": [
+        "concept-mapping",
+        "method-translation"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I just read Famiglietti (2014) 'The global groundwater crisis' in Nature Climate Change. I'm an atmospheric-sciences PhD candidate. What's the essential physics and what should I take away for my own work on climate projections?",
       "input_document": {
         "type": "none",
@@ -241,6 +325,10 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "missing-constraint",
+          "concept-confusion"
+        ],
         "user_specific_response_themes": [
           "Explains storage anomaly (S \u00d7 \u0394h) as the core observable from GRACE.",
           "Distinguishes inelastic storage loss (permanent) from elastic S\u209b.",
@@ -267,6 +355,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 3,
+      "translation_task_types": [
+        "terminology-bridging",
+        "limitation-translation"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I'm an ecologist who just read Brenguier et al. (2008) 'Postseismic relaxation along the San Andreas fault at Parkfield from continuous seismological observations' in Science. I don't know seismology \u2014 what's the essential physics, and is there anything in this paper relevant to ambient-acoustic monitoring in ecology?",
       "input_document": {
         "type": "none",
@@ -290,6 +384,10 @@
           "noise"
         ],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "terminology-failure",
+          "false-equivalence"
+        ],
         "user_specific_response_themes": [
           "Explains dv/v as fractional velocity change from coda-wave interferometry.",
           "Distinguishes 'ambient noise' in seismology (the signal!) from acoustic ambient in ecology (vocabulary collision).",
@@ -318,6 +416,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 3,
+      "translation_task_types": [
+        "method-translation",
+        "concept-mapping"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I'm a geomorphologist who studies landslides. I just read Iverson (2000) 'Landslide triggering by rain infiltration' WRR. The hydrology and the geomechanics blur together. Can you separate them for me \u2014 what's the geotech engineering content vs. the hydrology content?",
       "input_document": {
         "type": "none",
@@ -342,6 +446,10 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "concept-confusion",
+          "false-equivalence"
+        ],
         "user_specific_response_themes": [
           "Geotech content: Mohr-Coulomb failure criterion and transient FS calculation.",
           "Hydrology content: pore-pressure diffusion through the unsaturated zone.",
@@ -368,6 +476,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 4,
+      "translation_task_types": [
+        "concept-mapping",
+        "parameter-threshold-equivalence"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I'm a hydrologist reading Roering et al. (1999) 'Evidence for nonlinear, diffusive sediment transport on hillslopes' WRR. The math looks like the diffusion equations I use, but the rates are very different. Help me make the bridge.",
       "input_document": {
         "type": "none",
@@ -390,6 +504,10 @@
           "diffusivity"
         ],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "implausible-calibration",
+          "false-equivalence"
+        ],
         "user_specific_response_themes": [
           "TC-01 is the bridge: the same diffusion equation governs both.",
           "Hydraulic D (m\u00b2/s) vs. hillslope \u03ba (m\u00b2/yr) \u2014 ~10\u00b9\u2070\u00d7 scale difference.",
@@ -418,6 +536,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 3,
+      "translation_task_types": [
+        "concept-mapping",
+        "limitation-translation"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I'm a geotechnical engineer who just read Ralph et al. (2019) on the AR Scale. What are the key atmospheric variables, and which of them matter for dam and levee safety?",
       "input_document": {
         "type": "none",
@@ -444,6 +568,10 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "missing-constraint",
+          "implausible-calibration"
+        ],
         "user_specific_response_themes": [
           "Defines IVT (kg/m/s) as the AR-Scale categorization variable.",
           "AR-Scale 1\u20135 by peak IVT + duration; AR-5 events are the design-storm regime.",
@@ -470,6 +598,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 4,
+      "translation_task_types": [
+        "method-translation",
+        "sensor-data-equivalence"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I'm a hydrologist who just read Allen et al. (2010) on global drought-induced tree mortality (Forest Ecology and Management). The mechanisms section talks about hydraulic failure and carbon starvation. How does that connect to my soil-moisture and ET observations?",
       "input_document": {
         "type": "none",
@@ -496,6 +630,10 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "concept-confusion",
+          "missing-constraint"
+        ],
         "user_specific_response_themes": [
           "Hydraulic failure: xylem cavitation under sustained low water potential \u2014 connects to SMAP root-zone moisture observations.",
           "Carbon starvation: stomatal closure terminates photosynthesis; eddy covariance shows GPP collapse.",
@@ -522,6 +660,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 3,
+      "translation_task_types": [
+        "data-availability-assessment",
+        "parameter-threshold-equivalence"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I'm a seismologist who reads about California seasonal-seismicity studies (Johnson et al. 2017 in Science). I want to understand the agricultural side: how big is the irrigation withdrawal that's loading the crust, and where does that water come from?",
       "input_document": {
         "type": "none",
@@ -547,6 +691,10 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "domain-ignorance",
+          "implausible-calibration"
+        ],
         "user_specific_response_themes": [
           "California Central Valley irrigation: ~10\u201320 km\u00b3/yr pumping, exceeds recharge in dry years.",
           "Source: groundwater + surface (State Water Project + Central Valley Project).",
@@ -573,6 +721,12 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 4,
+      "translation_task_types": [
+        "sensor-data-equivalence",
+        "concept-mapping"
+      ],
+      "tier": "silver",
+      "compound_coupling": [],
       "prompt": "I'm a hydrology researcher reading Minsley et al. (2021) on the USGS Mississippi Embayment AEM survey (Scientific Reports). The geophysics methods are unfamiliar. How do I read a \u03c3 map as a hydrologist?",
       "input_document": {
         "type": "none",
@@ -598,6 +752,10 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "concept-confusion",
+          "missing-constraint"
+        ],
         "user_specific_response_themes": [
           "Archie's law is the petrophysical bridge: \u03c3 depends on porosity, saturation, fluid conductivity.",
           "Low \u03c3 in saline aquifers vs. high \u03c3 in clay-bearing aquitards \u2014 the architecture distinction.",
@@ -624,6 +782,13 @@
       ],
       "query_type": "paper-interpretation",
       "difficulty": 5,
+      "translation_task_types": [
+        "sensor-data-equivalence",
+        "method-translation",
+        "limitation-translation"
+      ],
+      "tier": "gold",
+      "compound_coupling": [],
       "prompt": "I'm an atmospheric scientist working on AR climatology. I just read Burtin et al. (2008) JGR on seismic noise from bedload transport. Walk me through the physics \u2014 what does this tell me about coupling between ARs, river discharge, and bedload?",
       "input_document": {
         "type": "none",
@@ -652,6 +817,11 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "missing-constraint",
+          "implausible-calibration",
+          "false-equivalence"
+        ],
         "user_specific_response_themes": [
           "Bedload transport produces broadband seismic noise (1\u2013100 Hz) as grains impact bed.",
           "TC-14 is the bridge: passive seismic monitoring of bedload \u2014 continuous, non-intrusive.",
@@ -679,6 +849,14 @@
       ],
       "query_type": "integration",
       "difficulty": 3,
+      "translation_task_types": [
+        "concept-mapping",
+        "method-translation"
+      ],
+      "tier": "silver",
+      "compound_coupling": [
+        "hydrology-seismology"
+      ],
       "prompt": "I work on aquifer-recharge modeling. How does my work connect to seismology? Are there real, mechanistic bridges or just statistical correlations?",
       "input_document": {
         "type": "none",
@@ -705,6 +883,10 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "false-equivalence",
+          "missing-constraint"
+        ],
         "user_specific_response_themes": [
           "TC-02 effective stress: mechanistic bridge, not statistical.",
           "Hydraulic diffusion D maps to fault-pressure diffusion (PD-induced-seismicity r\u00b2/t analysis).",
@@ -733,6 +915,17 @@
       ],
       "query_type": "integration",
       "difficulty": 4,
+      "translation_task_types": [
+        "method-translation",
+        "parameter-threshold-equivalence",
+        "limitation-translation"
+      ],
+      "tier": "gold",
+      "compound_coupling": [
+        "atmospheric_sciences-geomorphology",
+        "atmospheric_sciences-ecology",
+        "ecology-geomorphology"
+      ],
       "prompt": "I'm interested in modeling post-fire debris-flow hazard under climate change. I'd need to integrate atmospheric (precip), ecological (vegetation recovery), and geomorphic (sediment) processes. What bridges exist between these three?",
       "input_document": {
         "type": "none",
@@ -761,6 +954,11 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "missing-constraint",
+          "implausible-calibration",
+          "concept-confusion"
+        ],
         "user_specific_response_themes": [
           "Three coupled mechanisms: root-cohesion decay (eco), runoff intensification (hydro/atm), sediment yield amplification (geomorph).",
           "TC-15: climate-driven precipitation intensification \u2194 post-fire erosion window.",
@@ -789,6 +987,17 @@
       ],
       "query_type": "integration",
       "difficulty": 4,
+      "translation_task_types": [
+        "method-translation",
+        "data-availability-assessment",
+        "parameter-threshold-equivalence"
+      ],
+      "tier": "gold",
+      "compound_coupling": [
+        "agricultural_sciences-hydrology",
+        "geotechnical_engineering-hydrology",
+        "agricultural_sciences-geotechnical_engineering"
+      ],
       "prompt": "I'm proposing a multi-discipline study of California Central Valley land subsidence. I want to integrate the hydrology (pumping), agriculture (irrigation demand), and geotechnical engineering (consolidation). How do the three communities talk to each other, and what bridges are operational?",
       "input_document": {
         "type": "none",
@@ -818,6 +1027,11 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "missing-constraint",
+          "domain-ignorance",
+          "false-equivalence"
+        ],
         "user_specific_response_themes": [
           "TC-02 effective stress is the deep bridge; pumping \u2192 reduced p \u2192 increased \u03c3' \u2192 consolidation.",
           "Operational data: USGS NWIS wells + GRACE TWS + Sentinel-1 InSAR.",
@@ -846,6 +1060,17 @@
       ],
       "query_type": "integration",
       "difficulty": 4,
+      "translation_task_types": [
+        "method-translation",
+        "sensor-data-equivalence",
+        "limitation-translation"
+      ],
+      "tier": "silver",
+      "compound_coupling": [
+        "geotechnical_engineering-seismology",
+        "near_surface_geophysics-seismology",
+        "geotechnical_engineering-near_surface_geophysics"
+      ],
       "prompt": "I'm a seismologist with regional tomography work in the PNW. How do my Vs models connect to the geotechnical site characterization that the Cascadia hazard community needs?",
       "input_document": {
         "type": "none",
@@ -873,6 +1098,11 @@
         ],
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "false-equivalence",
+          "missing-constraint",
+          "concept-confusion"
+        ],
         "user_specific_response_themes": [
           "TC-12 is the depth-regime bridge: tomography 0.1-10 km, MASW 5-50 m, borehole 0-30 m.",
           "Vs30 derived from the upper-30-m portion of the seismologist's profile.",
@@ -900,6 +1130,14 @@
       ],
       "query_type": "vocabulary-disambiguation",
       "difficulty": 2,
+      "translation_task_types": [
+        "terminology-bridging",
+        "concept-mapping"
+      ],
+      "tier": "bronze",
+      "compound_coupling": [
+        "geotechnical_engineering-hydrology"
+      ],
       "prompt": "I'm reading a hydrogeology paper that uses 'permeability' and a geotechnical paper that uses 'permeability' \u2014 they seem to mean the same thing but I'm not sure. Are they the same?",
       "input_document": {
         "type": "none",
@@ -921,6 +1159,10 @@
           "permeability"
         ],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "terminology-failure",
+          "concept-confusion"
+        ],
         "user_specific_response_themes": [
           "Yes, intrinsic permeability k [m\u00b2] is the same physical quantity in both.",
           "But hydrology often reports hydraulic conductivity K = k\u03c1g/\u03bc [m/s]; not the same as k.",
@@ -947,6 +1189,14 @@
       ],
       "query_type": "vocabulary-disambiguation",
       "difficulty": 3,
+      "translation_task_types": [
+        "terminology-bridging",
+        "concept-mapping"
+      ],
+      "tier": "silver",
+      "compound_coupling": [
+        "geotechnical_engineering-seismology"
+      ],
       "prompt": "When my structural-engineering colleagues talk about 'stress,' do they mean the same thing as my seismologist friend who studies stress drop on faults?",
       "input_document": {
         "type": "none",
@@ -968,6 +1218,11 @@
           "stress"
         ],
         "refusals_or_caveats_expected": [],
+        "failure_modes_tested": [
+          "terminology-failure",
+          "false-equivalence",
+          "concept-confusion"
+        ],
         "user_specific_response_themes": [
           "The same stress tensor formalism \u2014 but conventions differ.",
           "Geotech defaults: total stress \u03c3 vs. effective \u03c3' = \u03c3 \u2212 p (Terzaghi).",
@@ -995,6 +1250,14 @@
       ],
       "query_type": "refusal-test",
       "difficulty": 4,
+      "translation_task_types": [
+        "concept-mapping",
+        "method-translation"
+      ],
+      "tier": "silver",
+      "compound_coupling": [
+        "hydrology-seismology"
+      ],
       "prompt": "Both earthquake-magnitude distributions and flood-frequency distributions follow power laws. They must share the same underlying mechanism \u2014 what is it? Can I use Gutenberg-Richter machinery to predict flood return periods directly?",
       "input_document": {
         "type": "none",
@@ -1016,6 +1279,10 @@
         "refusals_or_caveats_expected": [
           "forced-analogy",
           "surface-power-law-collision"
+        ],
+        "failure_modes_tested": [
+          "false-equivalence",
+          "hallucinated-analogue"
         ],
         "user_specific_response_themes": [
           "Refuses the forced analogy: power laws \u2260 shared mechanism.",
@@ -1048,6 +1315,14 @@
       ],
       "query_type": "refusal-test",
       "difficulty": 3,
+      "translation_task_types": [
+        "terminology-bridging",
+        "concept-mapping"
+      ],
+      "tier": "silver",
+      "compound_coupling": [
+        "ecology-seismology"
+      ],
       "prompt": "Both ambient seismic noise and soundscape ecology use 'noise' as their data. What's the connection between seismic noise studies and acoustic biodiversity monitoring? Are they really the same field?",
       "input_document": {
         "type": "none",
@@ -1070,6 +1345,10 @@
         ],
         "refusals_or_caveats_expected": [
           "vocabulary-collision"
+        ],
+        "failure_modes_tested": [
+          "terminology-failure",
+          "false-equivalence"
         ],
         "user_specific_response_themes": [
           "Refuses to equate the two: same word, different physics.",
@@ -1101,6 +1380,17 @@
       ],
       "query_type": "joint-observation",
       "difficulty": 5,
+      "translation_task_types": [
+        "method-translation",
+        "data-availability-assessment",
+        "limitation-translation"
+      ],
+      "tier": "gold",
+      "compound_coupling": [
+        "hydrology-seismology",
+        "hydrology-near_surface_geophysics",
+        "near_surface_geophysics-seismology"
+      ],
       "prompt": "I want to monitor a small catchment's groundwater state in real time without relying solely on a sparse well network. What's the best multi-sensor joint-observation strategy \u2014 what do I get from seismic, electrical, and gravity methods, and how do I fuse them?",
       "input_document": {
         "type": "none",
@@ -1133,6 +1423,11 @@
         "vocabulary_collisions_flagged": [],
         "refusals_or_caveats_expected": [
           "different-regime"
+        ],
+        "failure_modes_tested": [
+          "missing-constraint",
+          "implausible-calibration",
+          "false-equivalence"
         ],
         "user_specific_response_themes": [
           "Each method captures a different aspect: dv/v \u2192 integrated storage/saturation; ERT \u2192 spatial distribution; gravity \u2192 mass.",
